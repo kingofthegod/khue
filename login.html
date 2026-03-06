@@ -1,0 +1,723 @@
+<!-- <!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LOGIN — FunFusion (Neon Intro)</title>
+
+Bootstrap & Uiverse (UI helpers) --
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://unpkg.com/uiverse-css@0.3.8/dist/uiverse.min.css" rel="stylesheet" />
+
+ GSAP for smooth advanced animations --
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<style>
+  :root{
+    --neon1: #00f6ff;
+    --neon2: #7a00ff;
+    --bg-dark: #070015;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#eaf9ff}
+  body {
+    background: radial-gradient(circle at 10% 10%, rgba(122,0,255,0.06), transparent 12%),
+                radial-gradient(circle at 90% 80%, rgba(0,246,255,0.05), transparent 12%),
+                linear-gradient(180deg,#050014,#06061a 60%,#04020b);
+    overflow:hidden;
+  }
+
+  /* moving gradient big glow behind everything */
+  .bg-gradient {
+    position:fixed; inset:-30%;
+    background: linear-gradient(120deg, #06102b 0%, #1a0033 30%, #00121a 60%, #06102b 100%);
+    filter: blur(80px) saturate(120%);
+    transform: scale(1.05);
+    animation: bgShift 12s linear infinite;
+    z-index:0;
+  }
+  @keyframes bgShift {
+    0%{ transform: translateX(-5%) scale(1.05) rotate(0deg); }
+    50%{ transform: translateX(5%) scale(1.06) rotate(0.2deg); }
+    100%{ transform: translateX(-5%) scale(1.05) rotate(0deg); }
+  }
+
+  /* particle canvas sits above bg but below UI */
+  #particleCanvas{ position:fixed; inset:0; z-index:1; pointer-events:none; }
+
+  /* center wrapper */
+  .wrap {
+    position:relative; z-index:5; min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:32px;
+  }
+
+  /* Neon form card */
+  .neon-card {
+    width:420px;
+    border-radius:16px;
+    padding:28px;
+    position:relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 40px rgba(122,0,255,0.06);
+    backdrop-filter: blur(8px) saturate(120%);
+    overflow:hidden;
+  }
+
+  /* animated neon border (moving gradient) */
+  .neon-card::before {
+    content:"";
+    position:absolute; inset:-2px;
+    background: linear-gradient(90deg, rgba(0,246,255,0.9), rgba(122,0,255,0.95), rgba(0,246,255,0.9));
+    filter: blur(12px);
+    opacity:0.14;
+    transform: translateZ(0);
+    animation: borderMove 6s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes borderMove { 0%{background-position:0%} 100%{background-position:200%} }
+
+  /* inner glass border */
+  .neon-card .inner {
+    position:relative; border-radius:12px;
+    padding:18px; background: linear-gradient(180deg, rgba(10,10,20,0.55), rgba(10,10,30,0.45));
+    backdrop-filter: blur(6px);
+    z-index:2;
+  }
+
+  /* title */
+  .neon-title {
+    font-size:40px; font-weight:800; letter-spacing:4px; text-align:center;
+    color:transparent; -webkit-text-stroke: 0.6px rgba(255,255,255,0.06);
+    background: linear-gradient(90deg,var(--neon1),var(--neon2));
+    -webkit-background-clip:text; background-clip:text;
+    filter: drop-shadow(0 6px 28px rgba(122,0,255,0.25));
+    margin-bottom:10px;
+  }
+
+  /* subtle neon reflection line */
+  .reflect {
+    position:absolute; left:0; right:0; top:40%;
+    height:2px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    transform: skewX(-20deg);
+    opacity:0.7; z-index:3; pointer-events:none;
+  }
+
+  /* inputs */
+  .form-control {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #eaf9ff;
+    height:46px;
+    border-radius:8px;
+    transition: box-shadow .25s, border-color .25s, transform .12s;
+  }
+  .form-control:focus {
+    box-shadow: 0 6px 24px rgba(0,246,255,0.08);
+    border-color: rgba(0,246,255,0.45);
+    outline: none;
+    transform: translateY(-2px);
+  }
+
+  /* checkbox row */
+  .remember-row { display:flex; align-items:center; gap:10px; color:#cfeff6; font-size:14px; margin-top:6px; }
+
+  /* main action button with sweep and micro-particles */
+  .btn-action {
+    position:relative; overflow:hidden;
+    background: linear-gradient(90deg,var(--neon1),var(--neon2));
+    color:#021; font-weight:800; border-radius:10px; border:none; padding:12px 18px;
+    box-shadow: 0 10px 30px rgba(122,0,255,0.18);
+    transition: transform .16s ease;
+  }
+  .btn-action:active{ transform: scale(.98); }
+  .btn-action .sweep {
+    position:absolute; left:-40%; top:0; width:60%; height:100%;
+    background: linear-gradient(90deg, rgba(255,255,255,0.25), rgba(255,255,255,0.02));
+    transform: skewX(-20deg); pointer-events:none; opacity:0.6;
+    animation: sweepAnim 1.8s linear infinite;
+  }
+  @keyframes sweepAnim { 0%{ left:-60% } 100%{ left:140% } }
+
+  /* small micro-glow on hover */
+  .btn-action:hover { box-shadow: 0 20px 50px rgba(122,0,255,0.28), 0 0 60px rgba(0,246,255,0.08); transform: translateY(-4px); }
+
+  /* footer link */
+  .small-link { text-align:center; margin-top:12px; color:#bfeefb; font-size:14px; }
+
+  /* full-screen overlay when triggering success transition */
+  .overlay-fade {
+    position:fixed; inset:0; background:#000; opacity:0; z-index:60; pointer-events:none;
+  }
+  .overlay-fade.show { pointer-events:auto; opacity:1; transition: opacity .6s ease; }
+
+  /* responsive */
+  @media (max-width:480px){
+    .neon-card{ width:92%; padding:18px }
+    .neon-title{ font-size:30px }
+  }
+
+  /* OPTIONAL: small glitch for title (brief) */
+  .glitch { position:relative; display:inline-block; }
+  .glitch::after, .glitch::before {
+    content: attr(data-text);
+    position:absolute; left:0; top:0; width:100%;
+    clip-path: inset(0 0 0 0);
+    opacity:0.8;
+  }
+  .glitch::before { left:2px; text-shadow: -6px 0 rgba(122,0,255,0.08); color:var(--neon1); mix-blend-mode: screen; }
+  .glitch::after { left:-2px; text-shadow: 6px 0 rgba(0,246,255,0.06); color:var(--neon2); mix-blend-mode: screen; }
+</style>
+</head>
+<body>
+
+  <div class="bg-gradient" aria-hidden="true"></div>
+  <canvas id="particleCanvas" aria-hidden="true"></canvas>
+
+  <div class="wrap">
+    <div class="neon-card" role="dialog" aria-labelledby="loginTitle" aria-modal="true">
+      <div class="inner">
+        <div class="neon-title glitch" id="loginTitle" data-text="LOGIN">LOGIN</div>
+        <div class="reflect" aria-hidden="true"></div>
+
+        <form id="loginForm" class="mt-3">
+          <div class="mb-2">
+            <input id="username" class="form-control" placeholder="Username" autocomplete="username" required />
+          </div>
+          <div class="mb-2">
+            <input id="password" type="password" class="form-control" placeholder="Password" autocomplete="current-password" required />
+          </div>
+          <div class="remember-row mb-2">
+            <input type="checkbox" id="rememberCheck" aria-label="remember me" />
+            <label for="rememberCheck" style="margin:0">Lưu đăng nhập cho lần sau</label>
+          </div>
+
+          <div class="d-grid mb-2">
+            <button type="submit" class="btn-action">
+              <span class="sweep" aria-hidden="true"></span>
+              <span id="btnLabel">Sign In</span>
+            </button>
+          </div>
+
+          <div class="small-link">
+            <a href="store.html" class="uiverse-link">Trở về Store</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay-fade" id="overlayFade" aria-hidden="true"></div>
+
+<script>
+/* ----------------------
+   Utilities & state
+   ---------------------- */
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = innerWidth;
+let H = canvas.height = innerHeight;
+window.addEventListener('resize', ()=>{ W = canvas.width = innerWidth; H = canvas.height = innerHeight; });
+
+/* ----------------------
+   Particle background (soft) - small moving orbs
+   ---------------------- */
+const particles = [];
+for(let i=0;i<48;i++){
+  particles.push({
+    x: Math.random()*W,
+    y: Math.random()*H,
+    r: Math.random()*2.6 + 0.8,
+    vx: (Math.random()-0.5)*0.2,
+    vy: (Math.random()-0.5)*0.2,
+    hue: Math.random()*360,
+    alpha: 0.06 + Math.random()*0.12
+  });
+}
+function drawParticles(){
+  ctx.clearRect(0,0,W,H);
+  for(let p of particles){
+    p.x += p.vx; p.y += p.vy;
+    if(p.x<0) p.x = W;
+    if(p.x>W) p.x = 0;
+    if(p.y<0) p.y = H;
+    if(p.y>H) p.y = 0;
+    // glow
+    const g = ctx.createRadialGradient(p.x,p.y,p.r*0.1,p.x,p.y,p.r*8);
+    g.addColorStop(0, `hsla(${p.hue},90%,60%,${p.alpha})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*6,0,Math.PI*2); ctx.fill();
+  }
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+/* ----------------------
+   Brief micro-particle burst on button click
+   ---------------------- */
+function burst(x,y, colorHue){
+  const bullets = [];
+  for(let i=0;i<30;i++){
+    const a = Math.random()*Math.PI*2;
+    bullets.push({
+      x,y,
+      vx: Math.cos(a)*(1+Math.random()*5),
+      vy: Math.sin(a)*(1+Math.random()*5),
+      life: 60 + Math.random()*30,
+      hue: colorHue + Math.random()*40 - 20
+    });
+  }
+  // animate locally (overlay)
+  let t = 0;
+  function step(){
+    ctx.save();
+    for(let b of bullets){
+      b.x += b.vx; b.y += b.vy; b.vy += 0.08;
+      b.life--;
+      if(b.life>0){
+        ctx.fillStyle = `hsla(${b.hue},90%,60%, ${Math.max(0, b.life/80)})`;
+        ctx.beginPath(); ctx.arc(b.x,b.y, 2+Math.random()*2,0,Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.restore();
+    t++;
+    if(t<90) requestAnimationFrame(step);
+  }
+  step();
+}
+
+/* ----------------------
+   Form logic + storage
+   ---------------------- */
+const form = document.getElementById('loginForm');
+const rememberCheck = document.getElementById('rememberCheck');
+const overlayFade = document.getElementById('overlayFade');
+
+function saveUser(userObj, remember){
+  // Save entire app state if needed — basic schema:
+  const state = {
+    username: userObj.username,
+    lastLogin: new Date().toISOString(),
+    lastAppState: { searchQuery: localStorage.getItem('lastSearch') || '', lastVisited: localStorage.getItem('lastVisited') || '' }
+  };
+  if(remember){
+    localStorage.setItem('ff_user', JSON.stringify(state));
+  } else {
+    sessionStorage.setItem('ff_user', JSON.stringify(state));
+  }
+}
+
+function getSavedUser(){
+  const v = localStorage.getItem('ff_user') || sessionStorage.getItem('ff_user');
+  return v? JSON.parse(v) : null;
+}
+
+// if already saved, redirect back to store immediately
+window.addEventListener('load', ()=>{
+  const s = getSavedUser();
+  if(s && s.username){
+    // small entrance animation then redirect to store
+    gsap.to('.neon-card', {duration:0.6, scale:0.92, opacity:0.6, ease:'power1.out'});
+    setTimeout(()=> location.href='store.html', 700);
+  }
+});
+
+/* ----------------------
+   GSAP micro-animations (title flicker, idle sweep)
+   ---------------------- */
+gsap.fromTo('.neon-title', {y:-6, opacity:0}, {y:0, opacity:1, duration:0.8, ease:'power2.out'});
+gsap.to('.neon-title', {duration:1.6, textShadow:'0 12px 40px rgba(122,0,255,0.18)', repeat:-1, yoyo:true, ease:'sine.inOut'});
+
+/* subtle card float */
+gsap.to('.neon-card', {y:8, duration:6, repeat:-1, yoyo:true, ease:'sine.inOut', opacity:1});
+
+/* button hover glint handled by CSS sweep animation; on click we do burst */
+const btn = document.querySelector('.btn-action');
+btn.addEventListener('click', (ev)=>{
+  const rect = btn.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+  burst(cx, cy, 260); // purple-ish hue
+});
+
+/* On form submit -> animate transition and save state */
+form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  if(!u || !p){ 
+    // small shake
+    gsap.fromTo('.neon-card', {x:-8}, {x:0, duration:0.4, ease:'elastic.out(1,0.5)'}); 
+    return;
+  }
+
+  // pretend auth success (client-side demo)
+  const remember = rememberCheck.checked;
+  saveUser({username:u}, remember);
+
+  // success animation: scale up + overlay fade + redirect to welcome (plays fireworks)
+  overlayFade.classList.add('show');
+  gsap.to('.neon-card', {duration:0.6, scale:1.1, opacity:0, ease:'power2.in', onComplete: ()=>{
+    // small delay and then goto welcome
+    setTimeout(()=>{ window.location.href = 'welcome.html'; }, 360);
+  }});
+});
+
+/* Accessibility: Escape returns to store */
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape') window.location.href = 'store.html';
+});
+
+/* End of script */
+</script>
+
+</body>
+</html> -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Neon Login / Sign Up</title>
+<style>
+  :root{
+    --bg:#0f0806;
+    --panel:#1a0f0c;
+    --accent1:#ff6a00;
+    --accent2:#ff3200;
+    --neon0:0 0 18px rgba(255,110,30,0.3),0 0 40px rgba(255,60,0,0.08);
+  }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:white;
+    font-family:"Inter","Segoe UI",sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+
+  .card{
+    width:860px;
+    height:420px;
+    background:linear-gradient(135deg,#1b0f0c,#120906);
+    border-radius:20px;
+    position:relative;
+    box-shadow:var(--neon0),0 10px 50px rgba(0,0,0,0.6);
+    border:1px solid rgba(255,80,0,0.1);
+    overflow:hidden;
+    display:flex;
+    transition:.45s cubic-bezier(.15,.9,.25,1);
+  }
+
+  .left{
+    width:50%;
+    padding:40px;
+  }
+
+  .left h1{
+    margin:0;
+    font-size:30px;
+  }
+
+  .left p{
+    margin:6px 0 0 0;
+    opacity:.75;
+  }
+
+  .right{
+    width:50%;
+    padding:40px 46px;
+    position:relative;
+  }
+
+  /* Floating label group */
+  .group{
+    position:relative;
+    margin-bottom:26px;
+  }
+
+  .group input{
+    width:100%;
+    height:44px;
+    background:transparent;
+    border:1px solid rgba(255,100,20,0.18);
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:14px;
+    color:white;
+    outline:none;
+    transition:.3s;
+    box-shadow:inset 0 6px 16px rgba(0,0,0,0.45);
+  }
+
+  .group label{
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:14px;
+    color:rgba(255,255,255,0.55);
+    pointer-events:none;
+    transition:.3s;
+  }
+
+  .group input:focus{
+    border-color:rgba(255,120,40,0.9);
+    box-shadow:0 0 20px rgba(255,100,20,0.18), inset 0 6px 16px rgba(0,0,0,0.45);
+  }
+
+  .group input:not(:placeholder-shown) + label,
+  .group input:focus + label{
+    top:-6px;
+    background:var(--bg);
+    font-size:11px;
+    padding:0 6px;
+    opacity:.85;
+    color:var(--accent1);
+  }
+
+  /* Button */
+  button{
+    width:100%;
+    height:46px;
+    border:none;
+    border-radius:30px;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+    background:linear-gradient(90deg,var(--accent1),var(--accent2));
+    box-shadow:0 6px 24px rgba(255,80,20,0.25);
+    transition:.25s cubic-bezier(.2,.9,.25,1);
+    color:white;
+    position:relative;
+    overflow:hidden;
+  }
+
+  button:active{
+    transform:translateY(2px) scale(.98);
+  }
+
+  .ripple{
+    position:absolute;
+    top:0;
+    left:0;
+    bottom:0;
+    width:0;
+    background:rgba(255,255,255,0.15);
+    transition:.45s;
+    pointer-events:none;
+  }
+
+  /* Switch link */
+  .switch{
+    margin-top:16px;
+    font-size:13px;
+    opacity:.75;
+  }
+
+  .switch span{
+    color:var(--accent1);
+    cursor:pointer;
+    font-weight:600;
+  }
+
+  /* Animation slide */
+  .right-inner{
+    transition:.55s cubic-bezier(.18,.9,.25,1);
+  }
+  .card.signup .right-inner{
+    transform:translateX(-14%);
+  }
+
+  /* Decor diagonal light */
+  .diag{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+
+  .diag::before{
+    content:"";
+    position:absolute;
+    left:48%;
+    top:-10%;
+    width:60%;
+    height:140%;
+    background:linear-gradient(90deg,rgba(255,80,20,0.12),rgba(255,40,0,0.25));
+    transform:skewX(-20deg);
+    filter:blur(20px);
+    opacity:.9;
+  }
+
+  /* Toast */
+  .toast{
+    position:fixed;
+    bottom:22px;
+    right:22px;
+    padding:12px 16px;
+    background:rgba(20,20,20,0.9);
+    border-radius:10px;
+    font-size:13px;
+    opacity:0;
+    transform:translateY(18px);
+    transition:.4s;
+    color:white;
+  }
+
+  .toast.show{
+    opacity:1;
+    transform:none;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="diag"></div>
+
+  <div class="left">
+    <h1 id="welcomeTitle">WELCOME BACK!</h1>
+    <p id="welcomeSub">Login to continue.</p>
+  </div>
+
+  <div class="right">
+    <div class="right-inner" id="rightInner">
+      <h2 id="formTitle">Login</h2>
+
+      <form id="form" autocomplete="off" onsubmit="return false;">
+
+        <div class="group">
+          <input id="username" type="text" required placeholder=" " />
+          <label>Username</label>
+        </div>
+
+        <div class="group" id="emailGroup" style="display:none;">
+          <input id="email" type="email" placeholder=" " />
+          <label>Email</label>
+        </div>
+
+        <div class="group">
+          <input id="password" type="password" required placeholder=" " />
+          <label>Password</label>
+        </div>
+
+        <button id="btn">
+          <span id="btnText">Login</span>
+          <span class="ripple" id="ripple"></span>
+        </button>
+
+      </form>
+
+      <div class="switch">
+        <span id="switchLink">Sign Up</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+
+<script>
+const card = document.getElementById("card");
+const switchLink = document.getElementById("switchLink");
+const formTitle = document.getElementById("formTitle");
+const welcomeTitle = document.getElementById("welcomeTitle");
+const welcomeSub = document.getElementById("welcomeSub");
+const emailGroup = document.getElementById("emailGroup");
+const btnText = document.getElementById("btnText");
+const btn = document.getElementById("btn");
+const ripple = document.getElementById("ripple");
+const toast = document.getElementById("toast");
+
+let isLogin = true;
+
+switchLink.onclick = () => toggle();
+
+function toggle(){
+  isLogin = !isLogin;
+  card.classList.toggle("signup");
+
+  if(isLogin){
+    formTitle.textContent="Login";
+    welcomeTitle.textContent="WELCOME BACK!";
+    welcomeSub.textContent="Login to continue.";
+    switchLink.textContent="Sign Up";
+    emailGroup.style.display="none";
+    btnText.textContent="Login";
+  }else{
+    formTitle.textContent="Sign Up";
+    welcomeTitle.textContent="WELCOME!";
+    welcomeSub.textContent="Create an account.";
+    switchLink.textContent="Login";
+    emailGroup.style.display="block";
+    btnText.textContent="Sign Up";
+  }
+}
+
+/* Ripple + Save localStorage */
+
+
+
+btn.onclick = (e)=>{
+  const rect = btn.getBoundingClientRect();
+  ripple.style.left = (e.clientX - rect.left)+"px";
+  ripple.style.width="0";
+  requestAnimationFrame(()=> ripple.style.width="260%");
+
+  save();
+}
+
+function save(){
+  const u = document.getElementById("username").value.trim();
+  const e = document.getElementById("email").value.trim();
+  const p = document.getElementById("password").value.trim();
+
+  if(u.length < 1){ show("Username required"); return; }
+  if(!isLogin && (e=="" || !e.includes("@"))){ show("Invalid email"); return; }
+  if(p.length < 4){ show("Password too short"); return; }
+
+  let data = localStorage.getItem("mafaa");
+  data = data ? JSON.parse(data) : {};
+
+  if(isLogin){
+    // Khi login: lấy email từ data đã signup trước đó (nếu có)
+    if(data.username === u){
+      data.action = "login";
+      data.at = Date.now();
+      show("Logged in!");
+    } else {
+      show("User not found!");
+      return;
+    }
+  } else {
+    // Khi signup: lưu username + email
+    data = {
+      username: u,
+      email: e,
+      action: "signup",
+      at: Date.now()
+    };
+    show("Signed up and saved!");
+  }
+
+  localStorage.setItem("mafaa", JSON.stringify(data));
+
+  // Trả về store.html sau khi login/signup
+  setTimeout(()=> window.location.href = "store.html", 600);
+}
+
+
+function show(msg){
+  toast.textContent=msg;
+  toast.classList.add("show");
+  setTimeout(()=> toast.classList.remove("show"),2600);
+}
+</script>
+
+</body>
+</html>
+

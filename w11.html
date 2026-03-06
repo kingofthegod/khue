@@ -1,0 +1,283 @@
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Windows 11 Pro Clone</title>
+<style>
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',sans-serif;
+  height:100vh;
+  overflow:hidden;
+  background: url('w11background.png') center/cover no-repeat;
+  transition: background 0.5s;
+}
+body.dark {
+  background: #1e1e1e;
+  color:#eee;
+}
+
+
+#taskbar {
+  position: fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:50px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 15px;
+  backdrop-filter:blur(20px) saturate(150%);
+  background:rgba(255,255,255,0.5);
+  border-top:1px solid rgba(255,255,255,0.3);
+  box-shadow:0 -2px 6px rgba(0,0,0,0.2);
+  z-index:100;
+}
+body.dark #taskbar {
+  background: rgba(30,30,30,0.8);
+  border-top:1px solid rgba(255,255,255,0.1);
+}
+
+#taskbar-left,#taskbar-right { display:flex; align-items:center; gap:12px; }
+
+.icon {
+  width:32px; height:32px;
+  padding:4px;
+  cursor:pointer;
+  border-radius:8px;
+  transition: all 0.25s ease;
+}
+.icon:hover {
+  transform:scale(1.2) rotate(-5deg);
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+  background: rgba(255,255,255,0.3);
+}
+
+
+#startPopup {
+  position: fixed;
+  top: 60px;
+  left:50%;
+  transform:translateX(-50%);
+  width:400px; max-width:90vw;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(15px);
+  border-radius:15px;
+  padding:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.3);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.3s ease, transform 0.3s ease;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+#startPopup.active {
+  opacity:1;
+  pointer-events:auto;
+  transform:translateX(-50%) translateY(0);
+}
+.tile {
+  background:rgba(200,200,200,0.2);
+  border-radius:12px;
+  padding:15px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.tile:hover { background:rgba(200,200,200,0.4); transform:scale(1.05); }
+
+
+#systemTray {
+  display:flex; align-items:center; gap:10px;
+  font-size:14px;
+}
+#systemTray .tray-item {
+  display:flex; align-items:center; gap:4px;
+  padding:4px 6px;
+  border-radius:6px;
+  cursor:pointer;
+  transition:0.2s;
+}
+#systemTray .tray-item:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+
+.popup {
+  position:absolute;
+  top:80px; left:50%; transform:translateX(-50%);
+  width:500px; max-width:90vw;
+  background: rgba(255,255,255,0.95);
+  border-radius:12px;
+  box-shadow:0 15px 40px rgba(0,0,0,0.3);
+  display:flex; flex-direction:column;
+  opacity:0; pointer-events:none;
+  transition:all 0.3s ease;
+}
+.popup.active { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+.popup-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 12px; background:rgba(0,0,0,0.05); border-radius:12px 12px 0 0;
+  cursor:move;
+}
+.popup-header span { font-weight:bold; }
+.popup-content { padding:15px; flex:1; overflow:auto; }
+
+
+#darkModeBtn {
+  padding:4px 6px;
+  border-radius:6px;
+  cursor:pointer;
+  background:rgba(0,0,0,0.1);
+  transition:0.3s;
+}
+#darkModeBtn:hover { background:rgba(0,0,0,0.2); }
+
+
+#contextMenu {
+  position:absolute;
+  background:rgba(255,255,255,0.95);
+  border-radius:8px;
+  box-shadow:0 6px 15px rgba(0,0,0,0.2);
+  display:none;
+  z-index:200;
+  min-width:150px;
+}
+#contextMenu ul { list-style:none; }
+#contextMenu ul li {
+  padding:8px 12px;
+  cursor:pointer;
+  transition:0.2s;
+}
+#contextMenu ul li:hover { background:rgba(0,0,0,0.1); }
+
+</style>
+</head>
+<body>
+
+
+<div id="startPopup">
+  <div class="tile">File Explorer</div>
+  
+  <div class="tile">Edge</div>
+  <div class="tile">Store</div>
+  <div class="tile">Calendar</div>
+  <div class="tile">Weather</div>
+  <div class="tile" id="darkModeBtn">Toggle Dark Mode</div>
+</div>
+
+
+<div id="fileApp" class="popup">
+  <div class="popup-header"><span>File Explorer</span><div><button class="closeBtn">X</button></div></div>
+  <div class="popup-content">
+    <p>Welcome to File Explorer popup!</p>
+  </div>
+</div>
+
+
+<div id="contextMenu">
+  <ul>
+    <li>New Folder</li>
+    <li>Refresh</li>
+    <li>Display Settings</li>
+  </ul>
+</div>
+
+
+<div id="taskbar">
+  <div id="taskbar-left">
+    <img id="startBtn" class="icon" src="w11logo.png" title="Start">
+    
+    <img id="searchBtn" class="icon" src="w11search.png" title="Search">
+    <img id="edgeBtn" class="icon" src="w11edge.png" title="Edge">
+    <img id="fileBtn" class="icon" src="w11file.png" title="File Explorer">
+    <img id="calendarBtn" class="icon" src="w11calender.png" title="Calendar">
+    <img id="storeBtn" class="icon" src="w11store.png" title="Store">
+    <img id="settingsBtn" class="icon" src="w11setting.png" title="Settings">
+  </div>
+  <div id="taskbar-right">
+    <div id="systemTray">
+      <div class="tray-item">Wi-Fi</div>
+      <div class="tray-item">🔋 85%</div>
+      <div class="tray-item">EN</div>
+      <div class="tray-item" id="clock">12:00</div>
+      <div class="tray-item">☀️ 25°C</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const startBtn = document.getElementById('startBtn');
+const startPopup = document.getElementById('startPopup');
+
+startBtn.onclick = (e) => {
+  startPopup.classList.toggle('active');
+};
+
+document.addEventListener('click',(e)=>{
+  if(!startPopup.contains(e.target) && e.target!==startBtn){
+    startPopup.classList.remove('active');
+  }
+});
+
+const darkModeBtn = document.getElementById('darkModeBtn');
+darkModeBtn.onclick = ()=>{
+  document.body.classList.toggle('dark');
+};
+
+const fileBtn = document.getElementById('fileBtn');
+const fileApp = document.getElementById('fileApp');
+const closeBtn = fileApp.querySelector('.closeBtn');
+
+fileBtn.onclick = ()=>{
+  fileApp.classList.add('active');
+};
+
+closeBtn.onclick = ()=>{
+  fileApp.classList.remove('active');
+};
+
+function updateClock(){
+  const clock = document.getElementById('clock');
+  const now = new Date();
+  clock.textContent = now.toLocaleTimeString([], {
+    hour:'2-digit',
+    minute:'2-digit'
+  });
+}
+
+setInterval(updateClock,1000);
+updateClock();
+
+const contextMenu = document.getElementById('contextMenu');
+
+document.addEventListener('contextmenu',(e)=>{
+  e.preventDefault();
+  contextMenu.style.top = e.clientY+'px';
+  contextMenu.style.left = e.clientX+'px';
+  contextMenu.style.display='block';
+});
+
+document.addEventListener('click',()=>{
+  contextMenu.style.display='none';
+});
+
+document.getElementById('edgeBtn').onclick = ()=>{
+  window.open('https://www.microsoft.com/edge','_blank');
+};
+
+document.getElementById('calendarBtn').onclick = ()=>{
+  window.open('https://calendar.google.com','_blank');
+};
+
+document.getElementById('storeBtn').onclick = ()=>{
+  window.open('store.html','_blank');
+};
+
+document.getElementById('settingsBtn').onclick = ()=>{
+  window.location.href='setting.html';
+};
+</script>

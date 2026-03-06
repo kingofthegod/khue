@@ -1,0 +1,575 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hangman — (Fixed)</title>
+<style>
+  :root{
+    --bg:#f7f7f8; --card:#ffffff; --text:#0b1220; --accent:#0078d7; --danger:#e63946;
+    --muted:#6b7280; --glass: rgba(255,255,255,0.6);
+  }
+  [data-theme="dark"]{
+    --bg:#0f1720; --card:#111318; --text:#e6eef8; --accent:#2bb6ff; --danger:#ff6b6b;
+    --muted:#9aa4b2; --glass: rgba(8,10,12,0.6);
+  }
+
+  html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:18px auto;padding:18px;display:grid;grid-template-columns:1fr 420px;gap:20px;align-items:start}
+  header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  header h1{margin:0;font-size:20px}
+  .top-controls{display:flex;gap:8px;align-items:center}
+  button, .pill{cursor:pointer}
+  .btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,0.08);transition:transform .12s}
+  .btn:hover{transform:translateY(-3px)}
+  .icon-btn{width:44px;height:44px;border-radius:10px;border:none;background:var(--card);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(2,6,23,0.06);font-size:18px}
+  .settings-panel{position:fixed;top:70px;right:22px;width:260px;padding:14px;border-radius:12px;background:var(--glass);backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(0,0,0,0.18);display:none;flex-direction:column;gap:10px}
+  .settings-panel.active{display:flex}
+  .settings-panel h3{margin:0;text-align:center}
+  .row{display:flex;gap:8px;align-items:center}
+  .scoreboard{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 24px rgba(2,6,23,0.06)}
+  .choose-panel{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 8px 24px rgba(2,6,23,0.06)}
+  .topic-list{display:flex;flex-wrap:wrap;gap:10px}
+  .topic{padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);cursor:pointer;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.02))}
+  .topic.active{outline:2px solid var(--accent);transform:translateY(-3px)}
+  .game-area{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 12px 30px rgba(2,6,23,0.06)}
+  .word-display{font-size:28px;letter-spacing:10px;margin:18px 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .letter{min-width:28px;border-bottom:3px solid var(--muted);text-align:center;padding:4px 6px;font-weight:700}
+  .revealed{color:var(--text)}
+  .wrong-board{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .wrong-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,0,0,0.06);padding:6px 10px;border-radius:999px;border:1px solid rgba(0,0,0,0.06);color:var(--danger);font-weight:700}
+  .keyboard{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:16px}
+  .key{padding:10px;border-radius:8px;background:var(--card);border:1px solid rgba(0,0,0,0.06);text-align:center;font-weight:600;cursor:pointer;user-select:none}
+  .key.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+  .key.wrong{animation:shake .35s; border-color:var(--danger); color:var(--danger); background:rgba(255,0,0,0.03)}
+  @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
+  .gallows{width:100%;height:75px;display:flex;align-items:center;justify-content:center} /* 1/4 size */
+  canvas{background:transparent; max-width:160px; max-height:75px;}
+  .hud{display:flex;gap:10px;align-items:center}
+  .achievements{position:fixed;left:20px;top:80px;width:300px;background:var(--card);padding:12px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.12);display:none;flex-direction:column;gap:8px}
+  .achievements.active{display:flex}
+  .ach-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.04)}
+  .muted{color:var(--muted);font-size:13px}
+  .small{font-size:13px;color:var(--muted)}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr; padding:12px} .gallows{order:2} .keyboard{grid-template-columns:repeat(7,1fr)}}
+</style>
+</head>
+<body data-theme="light">
+<div class="wrap">
+  <header>
+    <h1>Hangman 🪤</h1>
+    <div class="top-controls">
+      <div class="hud small">Score: <strong id="globalScore">0</strong></div>
+      <button class="icon-btn" id="achBtn" title="Achievements">🏆</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <section class="game-area" id="gameArea">
+    <div class="choose-panel">
+      <div class="small muted">Select Topic</div>
+      <div class="topic-list" id="topics"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <button class="icon-btn" id="startGame" title="Play">▶️</button>
+        <button class="icon-btn" id="shuffleWord" title="Random">🔀</button>
+        <div style="margin-left:auto" class="small muted">Hints: <span id="hintsUsed">0</span></div>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="gallows">
+      <canvas id="hangCanvas" width="160" height="75"></canvas>
+    </div>
+
+    <div class="word-display" id="wordDisplay" aria-live="polite"></div>
+
+    <div class="wrong-board" id="wrongBoard" aria-live="polite"></div>
+
+    <div class="keyboard" id="keyboardArea"></div>
+
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+      <button class="icon-btn" id="hintBtn" title="Hint">💡</button>
+      <button class="icon-btn" id="skipBtn" title="Skip">⏭️</button>
+      <button class="icon-btn" id="resetStats" title="Reset">♻️</button>
+    </div>
+  </section>
+
+  <aside style="display:flex;flex-direction:column;gap:12px">
+    <div class="scoreboard">
+      <div class="small muted">Game 2 — Hangman</div>
+      <h3 id="titleTopic">Topic: —</h3>
+      <div class="small">Words guessed: <strong id="sessionCorrect">0</strong></div>
+      <div class="small">Streak: <strong id="streak">0</strong></div>
+      <div style="height:8px"></div>
+      <div class="small muted">Tries left: <strong id="triesLeft">6</strong></div>
+    </div>
+
+    <div class="choose-panel">
+      <div class="small muted">Wrong Letters</div>
+      <div id="wrongIcons" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+    </div>
+
+    <div class="choose-panel">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div><button class="icon-btn" id="themeToggle">🌓</button></div>
+        <div style="flex:1">
+          <div class="small muted">Theme</div>
+          <div class="small">Light / Dark</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="settings-panel" id="settingsPanel">
+  <h3>⚙️ Settings</h3>
+  <div class="row"><label class="small">Dark / Light</label><div style="margin-left:auto"><input type="checkbox" id="themeSwitch"></div></div>
+  <div class="row"><label class="small">Sound</label><div style="margin-left:auto"><input type="checkbox" id="soundSwitch" checked></div></div>
+  <div class="row"><button class="icon-btn" id="resetAll" title="Reset All">♻️</button></div>
+</div>
+
+<div class="achievements" id="achPanel">
+  <h3>🏆 Achievements</h3>
+  <div class="ach-item"><div>Guess 30 words</div><div id="ach1" class="small muted">Locked</div></div>
+  <div class="ach-item"><div>Use hint 15 times</div><div id="ach2" class="small muted">Locked</div></div>
+  <div class="ach-item"><div>Guess 10 words without wrong</div><div id="ach3" class="small muted">Locked</div></div>
+  <div style="margin-top:8px"><small class="muted">Saved in browser</small></div>
+</div>
+
+<audio id="audioCorrect" src="https://cdn.pixabay.com/download/audio/2021/08/09/audio_3f6f4e78a8.mp3?filename=game-win-6341.mp3"></audio>
+<audio id="audioWrong" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6f3d8a3d79.mp3?filename=button-3-110567.mp3"></audio>
+<audio id="audioHint" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_70b2c70f54.mp3?filename=magic-chime-6076.mp3"></audio>
+
+<script>
+// /từ chủ đề
+const TOPICS = {
+  "Animals": ["elephant","giraffe","penguin","dolphin","kangaroo","butterfly","hamster","alligator","squirrel","rhinoceros"],
+  "Food": ["avocado","spaghetti","pineapple","blueberry","sandwich","mushroom","lasagna","chocolate","hamburger","pancake"],
+  "Clothes": ["jacket","sweater","trousers","scarf","footwear","blouse","cardigan","socks","headscarf","overcoat"],
+  "Jobs": ["teacher","engineer","doctor","nurse","firefighter","chef","mechanic","lawyer","dentist","designer"],
+  "Sports": ["football","badminton","gymnastics","swimming","basketball","cycling","boxing","archery","surfing","skateboard"],
+  "Transport": ["airplane","motorcycle","scooter","subway","bicycle","helicopter","tramway","ferryboat","carriage","rickshaw"]
+};
+
+// /lưu storage
+const KEY_THEME = "funfusion_theme";
+const KEY_GLOBAL = "funfusion_global_correct";
+const KEY_GAME2 = "funfusion_game2_stats"; // {hintsUsed,correct,streak, sessionCorrect}
+const KEY_ACH = "funfusion_achievements";
+const KEY_SAVEGAME = "funfusion_game2_save";
+
+// /trạng thái game
+let currentTopic = null;
+let word = "";
+let revealed = [];
+let wrongLetters = [];
+let triesLeft = 6;
+let sessionCorrect = 0;
+let streak = 0;
+let hintsUsed = 0;
+let allowInput = false;
+
+// /id
+const topicsEl = document.getElementById("topics");
+const wordDisplay = document.getElementById("wordDisplay");
+const keyboardArea = document.getElementById("keyboardArea");
+const wrongBoard = document.getElementById("wrongBoard");
+const wrongIcons = document.getElementById("wrongIcons");
+const startBtn = document.getElementById("startGame");
+const shuffleBtn = document.getElementById("shuffleWord");
+const hintBtn = document.getElementById("hintBtn");
+const skipBtn = document.getElementById("skipBtn");
+const resetStatsBtn = document.getElementById("resetStats");
+const triesLeftEl = document.getElementById("triesLeft");
+const sessionCorrectEl = document.getElementById("sessionCorrect");
+const streakEl = document.getElementById("streak");
+const globalScoreEl = document.getElementById("globalScore");
+const titleTopic = document.getElementById("titleTopic");
+const hintsUsedEl = document.getElementById("hintsUsed");
+const hangCanvas = document.getElementById("hangCanvas");
+const ctx = hangCanvas.getContext("2d");
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsPanel = document.getElementById("settingsPanel");
+const themeSwitch = document.getElementById("themeSwitch");
+const themeToggle = document.getElementById("themeToggle");
+const soundSwitch = document.getElementById("soundSwitch");
+const achBtn = document.getElementById("achBtn");
+const achPanel = document.getElementById("achPanel");
+const ach1 = document.getElementById("ach1"), ach2 = document.getElementById("ach2"), ach3 = document.getElementById("ach3");
+const audioCorrect = document.getElementById("audioCorrect"), audioWrong = document.getElementById("audioWrong"), audioHint = document.getElementById("audioHint");
+
+
+function saveToStorage(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+function loadFromStorage(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } }
+function playAudio(a){ if(soundSwitch.checked && a){ try{ a.currentTime=0; a.play(); } catch(e){} } }
+
+// giữ game hiện tại
+function persistSaveGame(){
+  const payload = {
+    currentTopic,
+    word,
+    revealed,
+    wrongLetters,
+    triesLeft,
+    sessionCorrect,
+    streak,
+    hintsUsed,
+    allowInput
+  };
+  saveToStorage(KEY_SAVEGAME, payload);
+}
+
+// /đọc save và trở về đúng chỗ
+function restoreSaveGame(){
+  const save = loadFromStorage(KEY_SAVEGAME, null);
+  if(save){
+    if(save.currentTopic && TOPICS[save.currentTopic]){
+      currentTopic = save.currentTopic;
+      word = save.word || "";
+      revealed = save.revealed || Array((word||"").length).fill(false);
+      wrongLetters = save.wrongLetters || [];
+      triesLeft = typeof save.triesLeft === "number" ? save.triesLeft : 6;
+      sessionCorrect = typeof save.sessionCorrect === "number" ? save.sessionCorrect : (loadFromStorage(KEY_GAME2,{correct:0}).correct || 0);
+      streak = save.streak || 0;
+      hintsUsed = save.hintsUsed || 0;
+      allowInput = !!save.allowInput;
+      document.querySelectorAll(".topic").forEach(x=>{ if(x.textContent === currentTopic) x.classList.add("active"); });
+      titleTopic.textContent = "Topic: " + (currentTopic || "—");
+      return true;
+    }
+  }
+  return false;
+}
+
+// dark/light mode
+function applyTheme(t){
+  document.body.setAttribute("data-theme", t);
+  localStorage.setItem(KEY_THEME, t);
+  themeSwitch.checked = (t === "dark");
+}
+applyTheme(localStorage.getItem(KEY_THEME) || "light");
+themeSwitch.addEventListener("change", ()=>applyTheme(themeSwitch.checked?"dark":"light"));
+themeToggle.addEventListener("click", ()=>applyTheme(document.body.getAttribute("data-theme")==="dark"?"light":"dark"));
+
+
+function updateGlobalScoreUI(){
+  const g = parseInt(localStorage.getItem(KEY_GLOBAL) || 0, 10);
+  globalScoreEl.textContent = g;
+}
+
+// UI
+function renderTopics(){
+  topicsEl.innerHTML = "";
+  Object.keys(TOPICS).forEach(t=>{
+    const b = document.createElement("div");
+    b.className = "topic";
+    b.textContent = t;
+    b.onclick = () => {
+      document.querySelectorAll(".topic").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      currentTopic = t;
+      titleTopic.textContent = "Topic: "+t;
+      word = pickWord();
+      revealed = Array(word.length).fill(false);
+      wrongLetters = [];
+      triesLeft = 6;
+      allowInput = false;
+      updateUI();
+      clearCanvas(); drawGallows();
+      persistSaveGame();
+    };
+    topicsEl.appendChild(b);
+  });
+}
+renderTopics();
+
+// lấy 1 từ ngẫu nhiên trong chủ đề khác từ hiện tai
+function pickWord(){ if(!currentTopic) return ""; const list = TOPICS[currentTopic]; return list[Math.floor(Math.random()*list.length)].toLowerCase(); }
+function pickNewWordSameTopic(){ const list = TOPICS[currentTopic]; if(!list) return ""; if(list.length <= 1) return list[0] || ""; let w; do { w = list[Math.floor(Math.random()*list.length)]; } while(w === word); return w.toLowerCase(); }
+
+function startNewRound(){
+  if(!currentTopic){ alert("Chọn chủ đề trước khi chơi!"); return; }
+  word = pickWord();
+  revealed = Array(word.length).fill(false);
+  wrongLetters = [];
+  triesLeft = 6;
+  allowInput = true;
+  updateUI();
+  clearCanvas(); drawGallows();
+  persistSaveGame();
+}
+// hiển thị từng chữ , chữ sai, và ,...
+function updateUI(){
+  wordDisplay.innerHTML = "";
+  for(let i=0;i<word.length;i++){
+    const span = document.createElement("div");
+    span.className="letter";
+    if(revealed[i]){ span.textContent = word[i].toUpperCase(); span.classList.add("revealed"); } else { span.textContent = ""; }
+    wordDisplay.appendChild(span);
+  }
+
+  wrongBoard.innerHTML = "";
+  wrongIcons.innerHTML = "";
+  wrongLetters.forEach(ch=>{
+    const chip = document.createElement("div"); chip.className="wrong-chip"; chip.innerHTML = `<span style="font-weight:800">${ch.toUpperCase()}</span>`;
+    wrongBoard.appendChild(chip);
+    const ic = document.createElement("div"); ic.style.width="36px"; ic.style.height="36px"; ic.style.borderRadius="8px"; ic.style.display="flex"; ic.style.alignItems="center"; ic.style.justifyContent="center";
+    ic.style.background = "rgba(0,0,0,0.04)"; ic.textContent = ch.toUpperCase(); wrongIcons.appendChild(ic);
+  });
+
+  triesLeftEl.textContent = triesLeft;
+  sessionCorrectEl.textContent = sessionCorrect;
+  streakEl.textContent = streak;
+  hintsUsedEl.textContent = hintsUsed;
+
+  updateKeyboard();
+  persistSaveGame();
+}
+// tạo bàn phím ảo để xem chữ đó dùng chx
+function updateKeyboard(){
+  keyboardArea.innerHTML = "";
+  const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+  letters.forEach(l=>{
+    const k = document.createElement("div");
+    k.className = "key";
+    k.textContent = l.toUpperCase();
+    if(wrongLetters.includes(l) || revealedLettersIncludes(l)) k.classList.add("disabled");
+    k.onclick = ()=>{ if(!k.classList.contains("disabled")) handleGuess(l, k); };
+    keyboardArea.appendChild(k);
+  });
+}
+
+function revealedLettersIncludes(letter){
+  for(let i=0;i<word.length;i++) if(word[i]===letter && revealed[i]) return true;
+  return false;
+}
+// nếu tất cả ô đã có chữ(chữ đúng , win )
+function handleGuess(letter, keyEl){
+  if(!allowInput) return;
+  letter = letter.toLowerCase();
+  if(revealedLettersIncludes(letter) || wrongLetters.includes(letter)) return;
+
+  if(word.includes(letter)){
+    for(let i=0;i<word.length;i++) if(word[i]===letter) revealed[i]=true;
+    playAudio(audioCorrect);
+    checkWin();
+  } else {
+    wrongLetters.push(letter);
+    triesLeft--;
+    if(keyEl){ keyEl.classList.add("wrong"); setTimeout(()=>keyEl.classList.remove("wrong"),400); }
+    playAudio(audioWrong);
+    drawStep();
+    if(triesLeft<=0) loseRound();
+  }
+  updateUI();
+}
+// gợi ý ngẫu nhiên 1 vị trí chưa lộ , tăng hint đã đùng
+function revealRandomLetter(){
+  if(!allowInput) return;
+  const unrevealedIdxs = [];
+  for(let i=0;i<word.length;i++) if(!revealed[i]) unrevealedIdxs.push(i);
+  if(unrevealedIdxs.length===0) return;
+  const idx = unrevealedIdxs[Math.floor(Math.random()*unrevealedIdxs.length)];
+  
+  revealed[idx]=true;
+  hintsUsed++;
+  const s = loadFromStorage(KEY_GAME2, {hintsUsed:0,correct:0,streak:0,sessionCorrect:0});
+  s.hintsUsed = (s.hintsUsed||0) + 1;
+  saveToStorage(KEY_GAME2, s);
+  playAudio(audioHint);
+  updateUI();
+  checkWin();
+  evaluateAchievements();
+  persistSaveGame();
+}
+// tất cả ô có chữ , thắng , thông báo 
+function checkWin(){
+  if(revealed.length>0 && revealed.every(Boolean)){
+    allowInput=false;
+    sessionCorrect++;
+    streak++;
+    let g = parseInt(localStorage.getItem(KEY_GLOBAL)||"0",10);
+    g = g + 1;
+    localStorage.setItem(KEY_GLOBAL, String(g));
+    const s = loadFromStorage(KEY_GAME2, {hintsUsed:0,correct:0,streak:0,sessionCorrect:0});
+    s.correct = (s.correct||0) + 1;
+    s.sessionCorrect = sessionCorrect;
+    s.streak = Math.max(s.streak || 0, streak);
+    saveToStorage(KEY_GAME2, s);
+    updateGlobalScoreUI();
+    evaluateAchievements();
+    persistSaveGame();
+    spawnEmoji();
+    setTimeout(()=>{ alert("🎉 Bạn đã đoán đúng: "+word.toUpperCase()+"\n+1 điểm!"); startNextAfterWinLose(); }, 200);
+  }
+}
+
+function loseRound(){
+  allowInput=false;
+  streak=0;
+  const s = loadFromStorage(KEY_GAME2, {hintsUsed:0,correct:0,streak:0,sessionCorrect:0});
+  s.sessionCorrect = sessionCorrect;
+  s.streak = Math.max(s.streak || 0, streak);
+  saveToStorage(KEY_GAME2, s);
+  evaluateAchievements();
+  persistSaveGame();
+  setTimeout(()=>{ alert("💀 Bạn đã thua — từ đúng: "+word.toUpperCase()); startNextAfterWinLose(); }, 200);
+}
+// Lấy từ mới trong cùng topic, đặt lại arrays, lần thử
+function startNextAfterWinLose(){
+  if(!currentTopic){ alert("Chọn chủ đề!"); return; }
+  word = pickNewWordSameTopic();
+  revealed = Array(word.length).fill(false);
+  wrongLetters = [];
+  triesLeft = 6;
+  allowInput=true;
+  updateUI();
+  clearCanvas(); drawGallows();
+  persistSaveGame();
+}
+
+
+skipBtn.addEventListener("click", ()=>{
+  if(!currentTopic){ alert("Chọn chủ đề!"); return; }
+  startNextAfterWinLose();
+});
+shuffleBtn.addEventListener("click", ()=>{
+  if(!currentTopic){ alert("Chọn chủ đề!"); return; }
+  startNextAfterWinLose();
+});
+
+
+startBtn.addEventListener("click", ()=>{ if(!currentTopic){ alert("Chọn một chủ đề trước!"); return; } startNewRound(); });
+
+
+hintBtn.addEventListener("click", ()=>{ revealRandomLetter(); });
+
+// đặt lại như ban đầu
+resetStatsBtn.addEventListener("click", ()=>{
+  if(confirm("Reset session stats?")){
+    sessionCorrect=0; streak=0; hintsUsed=0;
+    const s = loadFromStorage(KEY_GAME2, {hintsUsed:0,correct:0,streak:0,sessionCorrect:0});
+    s.sessionCorrect = 0;
+    saveToStorage(KEY_GAME2, s);
+    updateUI();
+    persistSaveGame();
+  }
+});
+
+// chuyển thành chữ thường
+document.addEventListener("keydown", e=>{
+  if(!allowInput) return;
+  const k = e.key.toLowerCase();
+  if(k.match(/^[a-z]$/)){
+    const keyEl = Array.from(document.querySelectorAll(".key")).find(x=>x.textContent.toLowerCase()===k);
+    if(keyEl && !keyEl.classList.contains("disabled")) handleGuess(k,keyEl);
+  }
+});
+
+// vẽ
+function clearCanvas(){ ctx.clearRect(0,0,hangCanvas.width,hangCanvas.height); }
+function drawGallows(){
+  clearCanvas();
+  ctx.strokeStyle = (document.body.getAttribute("data-theme")==="dark") ? "#e6eef8" : "#111";
+  ctx.lineWidth = 3;
+  // vẽ base, gọi gọi drawStep() — để restore trạng thái khi reload.
+  ctx.beginPath(); ctx.moveTo(10,70); ctx.lineTo(150,70); ctx.stroke();
+  
+  ctx.beginPath(); ctx.moveTo(30,70); ctx.lineTo(30,10); ctx.lineTo(100,10); ctx.lineTo(100,25); ctx.stroke();
+  drawStep(); // draw any existing steps (for restore)
+}
+function drawStep(){
+  const step = 6 - triesLeft;
+  ctx.strokeStyle = (document.body.getAttribute("data-theme")==="dark")? "#fff":"#111";
+  ctx.lineWidth = 3;
+  // Step 1: head
+  if(step>=1){ ctx.beginPath(); ctx.arc(100,37,10,0,Math.PI*2); ctx.stroke(); }
+  // Step 2: body
+  if(step>=2){ ctx.beginPath(); ctx.moveTo(100,47); ctx.lineTo(100,57); ctx.stroke(); }
+  // Step 3: left arm
+  if(step>=3){ ctx.beginPath(); ctx.moveTo(100,50); ctx.lineTo(90,58); ctx.stroke(); }
+  // Step 4: right arm
+  if(step>=4){ ctx.beginPath(); ctx.moveTo(100,50); ctx.lineTo(110,58); ctx.stroke(); }
+  // Step 5: left leg
+  if(step>=5){ ctx.beginPath(); ctx.moveTo(100,57); ctx.lineTo(90,67); ctx.stroke(); }
+  // Step 6: right leg
+  if(step>=6){ ctx.beginPath(); ctx.moveTo(100,57); ctx.lineTo(110,67); ctx.stroke(); }
+}
+
+// /win
+function spawnEmoji(){
+  const list = ["🎉","⭐","😎","🌟","✨"];
+  const e = document.createElement("div");
+  e.textContent = list[Math.floor(Math.random()*list.length)];
+  e.style.position = "absolute";
+  e.style.left = (window.innerWidth * 0.5 + (Math.random()*200-100)) + "px";
+  e.style.top = (window.innerHeight * 0.35 + (Math.random()*40-20)) + "px";
+  e.style.fontSize = "28px";
+  e.style.pointerEvents = "none";
+  document.body.appendChild(e);
+  const a = e.animate([{ transform:"translateY(0)", opacity:1 }, { transform:"translateY(-140px)", opacity:0 }], { duration:900, easing:"ease-out" });
+  a.onfinish = ()=> e.remove();
+}
+
+// thành tựu
+function evaluateAchievements(){
+  const stats = loadFromStorage(KEY_GAME2, {hintsUsed:0,correct:0,streak:0,sessionCorrect:0});
+  const global = parseInt(localStorage.getItem(KEY_GLOBAL)||"0",10);
+  if(global>=30) { markAch(1); } else { unmarkAch(1); }
+  if(stats.hintsUsed>=15) { markAch(2); } else { unmarkAch(2); }
+  if(stats.streak>=10) { markAch(3); } else { unmarkAch(3); }
+  saveAchievementsToStorage();
+}
+function loadAchievements(){ return loadFromStorage(KEY_ACH, {ach1:false,ach2:false,ach3:false}); }
+function saveAchievementsToStorage(){ saveToStorage(KEY_ACH, {ach1:ach1.textContent!=="Locked", ach2:ach2.textContent!=="Locked", ach3:ach3.textContent!=="Locked"}); }
+function markAch(n){ if(n===1){ ach1.textContent="Unlocked"; ach1.style.color="var(--accent)"; } if(n===2){ ach2.textContent="Unlocked"; ach2.style.color="var(--accent)"; } if(n===3){ ach3.textContent="Unlocked"; ach3.style.color="var(--accent)"; } }
+function unmarkAch(n){ if(n===1){ ach1.textContent="Locked"; ach1.style.color=""; } if(n===2){ ach2.textContent="Locked"; ach2.style.color=""; } if(n===3){ ach3.textContent="Locked"; ach3.style.color=""; } }
+(function initAchievementsFromStorage(){ const a=loadAchievements(); if(a.ach1) markAch(1); if(a.ach2) markAch(2); if(a.ach3) markAch(3); })();
+
+// xóa hết
+document.getElementById("resetAll").addEventListener("click", ()=>{
+  if(confirm("Reset all saved data (global score, game stats, achievements, saved game)?")){
+    localStorage.removeItem(KEY_GLOBAL); localStorage.removeItem(KEY_GAME2); localStorage.removeItem(KEY_ACH); localStorage.removeItem(KEY_SAVEGAME);
+    updateGlobalScoreUI(); sessionCorrect=0; streak=0; hintsUsed=0; sessionCorrectEl.textContent=0; streakEl.textContent=0; hintsUsedEl.textContent=0;
+    ach1.textContent="Locked"; ach2.textContent="Locked"; ach3.textContent="Locked"; ach1.style.color=ach2.style.color=ach3.style.color="";
+    word = ""; revealed = []; wrongLetters = []; triesLeft = 6; allowInput=false; updateUI(); clearCanvas(); drawGallows();
+    alert("Reset done.");
+  }
+});
+
+
+function init(){
+  // đặt 1 chủ đề là mặc định để ko trống
+  const firstTopic = Object.keys(TOPICS)[0];
+  const firstEl = document.querySelectorAll(".topic")[0];
+  if(firstEl){ firstEl.classList.add("active"); currentTopic = firstTopic; titleTopic.textContent="Topic: "+firstTopic; }
+
+  // lấy Storage
+  const restored = restoreSaveGame();
+  if(!restored){
+  
+    const st = loadFromStorage(KEY_GAME2, {hintsUsed:0,correct:0,streak:0,sessionCorrect:0});
+    hintsUsed = st.hintsUsed || 0;
+    sessionCorrect = st.sessionCorrect || st.correct || 0;
+    streak = st.streak || 0;
+    word = ""; revealed = []; wrongLetters = []; triesLeft = 6; allowInput=false;
+  }
+
+  updateGlobalScoreUI();
+  drawGallows();
+  updateUI();
+
+  settingsBtn.addEventListener("click", ()=>settingsPanel.classList.toggle("active"));
+  achBtn.addEventListener("click", ()=>achPanel.classList.toggle("active"));
+  evaluateAchievements();
+}
+init();
+
+
+window.addEventListener("beforeunload", ()=>{ persistSaveGame(); });
+
+</script>
+</body>
+</html>

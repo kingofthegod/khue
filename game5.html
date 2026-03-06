@@ -1,0 +1,544 @@
+
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FastTyper³ — Progressive Mode (updated)</title>
+<style>
+  :root{
+    --bg-1:#07070a;
+    --bg-2:#0b0b0d;
+    --panel: rgba(255,255,255,0.03);
+    --glass: rgba(255,255,255,0.02);
+    --accent: #ffd54a;
+    --muted: #9aa6b2;
+    --text: #e6eef8;
+    --success: #2bd47b;
+    --danger: #ff6b6b;
+    --shadow: 0 18px 50px rgba(0,0,0,0.55);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial;color:var(--text);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:
+    radial-gradient(circle at 10% 10%, rgba(255,213,74,0.02), transparent 6%),
+    linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 60%);
+  }
+
+  /* carbon texture */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;
+    background-image:
+      linear-gradient(90deg, rgba(255,255,255,0.01) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255,255,255,0.01) 1px, transparent 1px);
+    background-size:16px 16px, 16px 16px;
+    opacity:0.14;
+  }
+
+  /* ---------- Header / Menu ---------- */
+  .menu{
+    width:1100px; max-width:96%; margin:20px auto 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 16px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03)); box-shadow:var(--shadow); border:1px solid rgba(255,255,255,0.03);
+  }
+  .brand{font-family:"Segoe Script", "Brush Script MT", cursive; font-size:34px; color:var(--accent); text-shadow:0 6px 28px rgba(0,0,0,0.6); font-weight:800}
+  .menu-right{display:flex;align-items:center;gap:12px}
+  .btn{
+    background:var(--panel); border:1px solid rgba(255,255,255,0.03); padding:8px 12px; border-radius:10px; color:var(--text); cursor:pointer; font-weight:800;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .btn:hover{ transform: translateY(-3px); box-shadow: 0 20px 50px rgba(0,0,0,0.6) }
+  .btn.primary{ background: linear-gradient(180deg,#ffffff,#f6f6f6); color:#000; padding:10px 16px; border-radius:12px; font-size:15px; font-weight:900; }
+  .small{ padding:7px 10px; font-size:13px; }
+
+  .flags{display:flex; gap:8px; align-items:center}
+  .flag{width:44px;height:28px;border-radius:6px;overflow:hidden;display:inline-block;box-shadow: inset 0 -6px 18px rgba(0,0,0,0.3)}
+
+  /* ---------- Stage ---------- */
+  .stage{width:1100px;max-width:96%; margin:18px auto; display:flex; gap:18px; align-items:flex-start; justify-content:center}
+  .left{flex:1; display:flex; flex-direction:column; align-items:center; gap:18px}
+
+  /* Circle sizing responsive — uses viewport min dimension so fullscreen (F11) looks great */
+  .circle-outer{
+    width: min(72vmin, 680px);
+    height: min(72vmin, 680px);
+    border-radius:50%; position:relative;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,213,74,0.03), transparent 12%),
+      linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));
+    border:1px solid rgba(255,255,255,0.03);
+    box-shadow: 0 35px 80px rgba(0,0,0,0.65);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .circle-inner{
+    width: calc(min(72vmin, 680px) * 0.78);
+    height: calc(min(72vmin, 680px) * 0.78);
+    border-radius:50%; display:flex; align-items:center; justify-content:center; flex-direction:column; position:relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));
+  }
+  .word-current{font-size: calc(min(72vmin, 680px) * 0.09); font-weight:900; letter-spacing:4px; text-align:center}
+  .word-next{font-size: calc(min(72vmin, 680px) * 0.035); margin-top:18px; opacity:0.42; color:var(--muted)}
+  .typed-indicator{position:absolute; bottom:calc(min(72vmin, 680px) * 0.045); left:50%; transform:translateX(-50%); font-size:13px; color:var(--muted)}
+
+  .ring{position:absolute; inset:6px; pointer-events:none}
+
+  .input-box{margin-top:10px; display:flex; gap:10px; align-items:center}
+  #typeInput{background:transparent;border:1px solid rgba(255,255,255,0.05); color:var(--text); padding:10px 12px;border-radius:10px; font-size:16px; width:360px; outline:none}
+
+  .controls{width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:6px}
+  .stats{display:flex; gap:12px; align-items:center}
+  .stat-card{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.04)); padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.02); min-width:110px; text-align:center}
+  .stat-card .big{font-weight:900; font-size:18px}
+
+  .right{width:320px; display:flex; flex-direction:column; gap:12px}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06)); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.03)}
+  .mini{font-size:13px; color:var(--muted)}
+  .panel .row{display:flex; justify-content:space-between; align-items:center; gap:8px}
+
+  .timebox{position:fixed; left:22px; bottom:22px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06)); padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.03); font-weight:900; font-size:18px}
+
+  .overlay{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:500}
+  .overlay .card{width:540px; padding:20px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06)); border:1px solid rgba(255,255,255,0.03); text-align:center}
+  .overlay h1{margin:6px 0 2px; font-size:28px}
+  .overlay .stats-grid{display:flex; gap:12px; justify-content:center; margin-top:10px}
+  .overlay .stat{min-width:120px}
+
+  @media(max-width:1024px){
+    .circle-outer{width:62vmin;height:62vmin}
+    .circle-inner{width:48vmin;height:48vmin}
+    .word-current{font-size:6.2vmin}
+  }
+  @media(max-width:780px){
+    .stage{flex-direction:column; align-items:center}
+    .right{width:92%}
+    .menu{flex-direction:column; gap:12px}
+    #typeInput{width:54vw}
+  }
+</style>
+</head>
+<body>
+
+  <!-- HEADER / MENU -->
+  <div class="menu" role="banner">
+    <div class="brand">FastTyper³</div>
+    <div class="menu-right">
+      <div class="flags" aria-hidden="true">
+        <div class="flag" title="English" style="background:linear-gradient(180deg,#fff,#eee)"></div>
+        <div class="flag" title="Spanish" style="background:linear-gradient(180deg,#f6e2d6,#e7d6c4)"></div>
+        <div class="flag" title="German" style="background:linear-gradient(180deg,#f0f0f0,#ddd)"></div>
+        <div class="flag" title="French" style="background:linear-gradient(180deg,#fff5f5,#ffeaea)"></div>
+        <div class="flag" title="Italian" style="background:linear-gradient(180deg,#e8f8f0,#cfeee0)"></div>
+      </div>
+      <button id="playBtn" class="btn primary" aria-label="Play">PLAY</button>
+      <button id="personalBtn" class="btn small">Personal Bests</button>
+    </div>
+  </div>
+
+  <!-- STAGE -->
+  <div class="stage" role="main">
+    <div class="left">
+      <div id="circle" class="circle-outer" aria-hidden="false">
+        <div class="circle-inner">
+          <div id="currentWord" class="word-current" aria-live="polite">—</div>
+          <div id="nextWord" class="word-next">—</div>
+          <div class="typed-indicator mini" id="typedIndicator">Typed: <span id="typedSoFar"></span></div>
+        </div>
+
+        <!-- svg ring: note r will be set dynamically so stroke-dasharray is computed in JS -->
+        <svg id="ringSvg" class="ring" preserveAspectRatio="xMidYMid meet" viewBox="0 0 540 540">
+          <circle cx="270" cy="270" r="246" stroke="rgba(255,255,255,0.02)" stroke-width="10" fill="none"></circle>
+          <circle id="ringActive" cx="270" cy="270" r="246" stroke="#ffffff" stroke-width="10" fill="none" stroke-linecap="round" transform="rotate(-90 270 270)"></circle>
+        </svg>
+      </div>
+
+      <div class="input-box" style="margin-top:12px">
+        <input id="typeInput" placeholder="Type here then press Enter" autocomplete="off" spellcheck="false" />
+        <div id="levelBadge" class="mini" style="padding:8px 10px; background:var(--panel); border-radius:8px; border:1px solid rgba(255,255,255,0.02)">Len: 3</div>
+      </div>
+
+      <div class="controls" style="width:100%; margin-top:8px">
+        <div class="stats">
+          <div class="stat-card"><div class="mini">Words typed</div><div id="wordsTyped" class="big">0</div></div>
+          <div class="stat-card"><div class="mini">Accuracy</div><div id="accuracy" class="big">100%</div></div>
+          <div class="stat-card"><div class="mini">Level</div><div id="levelDisplay" class="big">1</div></div>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center">
+          <button id="pauseBtn" class="btn small">Pause</button>
+          <button id="restartBtn" class="btn small">Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="row"><div><strong>Mode</strong><div class="mini muted">Progressive words</div></div><div><strong id="currentLevel">Level 1</strong></div></div>
+        <hr style="opacity:0.06;margin:10px 0"/>
+        <div class="mini muted">Rules</div>
+        <ul class="mini" style="margin:8px 6px 0 18px;color:var(--muted)">
+          <li>Start: 10 words of 3 letters</li>
+          <li>Every 10 words → +1 letter (time reset)</li>
+          <li>Timer 10.0s (counts down). Each correct word +1s</li>
+          <li>Wrong attempts allowed (no penalty)</li>
+        </ul>
+      </div>
+
+      <div class="panel" id="personalPanel">
+        <div class="row"><div><strong>Personal Best</strong><div class="mini muted">Saved locally</div></div><button id="clearBest" class="btn small">Clear</button></div>
+        <div id="personalList" style="margin-top:10px;color:var(--muted)"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="timebox">TIME: <span id="timeLeft">10.0</span>s</div>
+
+  <!-- overlay Time's Up -->
+  <div id="overlay" class="overlay" role="dialog" aria-modal="true">
+    <div class="card">
+      <h1>⏰ TIME'S UP</h1>
+      <p class="mini muted">Here's how you did</p>
+      <div class="stats-grid">
+        <div class="stat"><div class="mini muted">Words typed</div><div id="statWords" class="big">0</div></div>
+        <div class="stat"><div class="mini muted">Accuracy</div><div id="statAcc" class="big">0%</div></div>
+        <div class="stat"><div class="mini muted">Letters / sec</div><div id="statLps" class="big">0.00</div></div>
+      </div>
+      <div style="margin-top:16px; display:flex; gap:10px; justify-content:center">
+        <button id="overlayRetry" class="btn primary">Play again</button>
+        <button id="overlayMenu" class="btn">Back to menu</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =========================
+   Word banks (English)
+   ========================= */
+// từ 3-8 chữ(độ dài)
+   const BANK = {
+  3: ["cat","dog","sun","cup","pen","map","car","hat","cow","pig","egg","key","box","sky","tea","bed","leg","man","run","win","ice","red","owl","ant","bus","ear","oak","jar","lip","mix"],
+  4: ["home","book","time","play","door","tree","kiss","fish","rain","star","wind","lamp","hand","snow","rock","city","gold","file","room","ship","mind","milk","cake","king","note","road","park","ring","jump","leaf"],
+  5: ["apple","light","water","sound","candy","smile","house","heart","earth","train","stone","brown","laugh","stair","drive","noise","chair","grain","plant","phone","movie","skill","glass","swing","shirt","table","watch","brush","floor"],
+  6: ["planet","silver","bright","target","moment","summer","forest","animal","bottle","garden","little","castle","people","stream","signal","screen","bridge","flight","friend","travel","wonder","yellow","museum","flight","button","singer","linear","polite","fabric","strain"],
+  7: ["picture","progress","another","popular","holiday","produce","compound","country","pattern","balance","feature","factory","library","network","reality","journal","advance","carrier","perform","natural","creative","process","history","gallery","mission","trainer","regular","primary","scenario","premium"],
+  8: ["creative","keyboard","boundary","function","business","practice","solution","distance","infinite","inspired","building","favorite","resource","activity","strategy","question","interface","computer","framework","elevator","excellent","platform","technical","ultimate","baseline","notebook","detailed"]
+};
+
+let currentLen = 3;      // độ dài chữ hiện tại
+let batchIndex = 0;      // số từ đúng trong mỗi level (từ 0 → 9)
+let wordsQueue = [];     // hàng đợi: từ hiện tại + từ tiếp theo
+let wordsTyped = 0;      // tổng số từ đúng
+let attempts = 0;        // tổng số lần Enter
+let totalLettersTyped = 0; // tổng số chữ cái người chơi gõ ĐÚNG
+let playing = false;     // đang chơi hay không
+let paused = false;      
+let timeLeft = 10.0;     
+let timerInterval = null;
+let startTime = null;
+
+// /local lưu kỉ lục người chơi
+const BEST_KEY = 'fasttyper_pb_v1';
+
+// UI
+const playBtn = document.getElementById('playBtn');
+const personalBtn = document.getElementById('personalBtn');
+const typeInput = document.getElementById('typeInput');
+const currentWordEl = document.getElementById('currentWord');
+const nextWordEl = document.getElementById('nextWord');
+const typedIndicator = document.getElementById('typedSoFar');
+const timeLeftEl = document.getElementById('timeLeft');
+const wordsTypedEl = document.getElementById('wordsTyped');
+const accuracyEl = document.getElementById('accuracy');
+const levelBadge = document.getElementById('levelBadge');
+const levelDisplay = document.getElementById('levelDisplay');
+const currentLevelTitle = document.getElementById('currentLevel');
+const overlay = document.getElementById('overlay');
+const statWords = document.getElementById('statWords');
+const statAcc = document.getElementById('statAcc');
+const statLps = document.getElementById('statLps');
+const overlayRetry = document.getElementById('overlayRetry');
+const overlayMenu = document.getElementById('overlayMenu');
+const personalList = document.getElementById('personalList');
+const clearBest = document.getElementById('clearBest');
+const ringActive = document.getElementById('ringActive');
+const ringSvg = document.getElementById('ringSvg');
+const pauseBtn = document.getElementById('pauseBtn');
+const restartBtn = document.getElementById('restartBtn');
+
+// vòng tròn time=chu vi htron giảm dần
+let ringFull = 1548;
+function initRing(){
+  
+  const el = ringActive;
+  const r = Number(el.getAttribute('r')) || 246;
+  const circ = 2 * Math.PI * r;
+  ringFull = Math.round(circ);
+  el.style.strokeDasharray = ringFull;
+  el.style.strokeDashoffset = ringFull;
+  // ensure stroke color is bright white
+  el.style.stroke = '#ffffff';
+}
+// Cập nhật vòng tròn theo % thời gian còn lại.
+function updateRing(){
+  const ratio = Math.max(0, Math.min(1, timeLeft / 10));
+  const offset = Math.round(ringFull * (1 - ratio));
+  ringActive.style.strokeDashoffset = offset;
+}
+
+// lấy 1 từ ngẫu nhiên theo độ dài
+function pickWord(len){
+  const bank = BANK[len] || [];
+  if(bank.length === 0) return randomWord(len);
+  return bank[Math.floor(Math.random() * bank.length)];
+}
+function randomWord(len){
+  const cons="bcdfghjklmnpqrstvwxyz";
+  const vows="aeiou";
+  let s="";
+  for(let i=0;i<len;i++) s += (i%2===0 ? cons : vows)[Math.floor(Math.random() * (i%2===0 ? cons.length : vows.length))];
+  return s.slice(0,len);
+}
+function refillQueue(){
+  while(wordsQueue.length < 2){
+    wordsQueue.push(pickWord(currentLen));
+  }
+}
+// hiện
+function renderWords(){
+  refillQueue();
+  currentWordEl.textContent = wordsQueue[0] || '—';
+  nextWordEl.textContent = wordsQueue[1] || '—';
+  levelBadge.textContent = `Len: ${currentLen}`;
+  levelDisplay.textContent = `Level ${currentLen - 2}`;
+  currentLevelTitle.textContent = `Level ${currentLen - 2}`;
+}
+
+// /thống kê
+function updateStatsUI(){
+  wordsTypedEl.textContent = wordsTyped;
+  const acc = attempts === 0 ? 100 : Math.round((wordsTyped / attempts) * 100);
+  accuracyEl.textContent = acc + '%';
+  timeLeftEl.textContent = timeLeft.toFixed(1);
+}
+
+// reset state
+function resetState(){
+  currentLen = 3;
+  batchIndex = 0;
+  wordsQueue = [];
+  wordsTyped = 0;
+  attempts = 0;
+  totalLettersTyped = 0;
+  playing = false;
+  paused = false;
+  timeLeft = 10.0;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  startTime = null;
+  overlay.style.display = 'none';
+  typeInput.value = '';
+  typedIndicator.textContent = '';
+  updateStatsUI();
+  updatePersonalPanel();
+  renderWords();
+  updateRing();
+}
+
+// giảm 0.1 giây mỗi 100ms
+function startTimer(){
+  clearInterval(timerInterval);
+  if(!startTime) startTime = performance.now();
+  timerInterval = setInterval(()=>{
+    if(paused) return;
+    timeLeft = Math.max(0, +(timeLeft - 0.1).toFixed(1));
+    updateStatsUI();
+    updateRing();
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      finishGame();
+    }
+  },100);
+}
+
+/* start playing */
+function startPlay(){
+  resetState();
+  playing = true;
+  refillQueue();
+  renderWords();
+  typeInput.disabled = false;
+  typeInput.focus();
+
+  initRing();
+  updateRing();
+  startTimer();
+}
+
+// gõ enter, tăng level sau mỗi 10 từ và reset time
+typeInput.addEventListener('keydown', (e)=>{
+  if(!playing) return;
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    const val = typeInput.value.trim();
+    if(val.length === 0) return;
+    attempts++;
+    const target = wordsQueue[0] || '';
+    if(val.toLowerCase() === target.toLowerCase()){
+      // correct
+      wordsTyped++;
+      totalLettersTyped += target.length;
+      timeLeft = +(timeLeft + 1).toFixed(1); // +1s
+      spawnCorrectAnim();
+      
+      wordsQueue.shift();
+      refillQueue();
+      batchIndex++;
+      
+      if(batchIndex >= 10){
+        batchIndex = 0;
+        currentLen++;
+        
+        timeLeft = 10.0;
+        
+        levelUpFlash();
+      }
+      renderWords();
+      typeInput.value = '';
+      typedIndicator.textContent = '';
+      updateStatsUI();
+      return;
+    } else {
+      
+      spawnWrongAnim();
+    }
+  } else if(e.key.length === 1){
+    
+    setTimeout(()=>{ typedIndicator.textContent = typeInput.value + (e.key || ''); },0);
+  } else if(e.key === 'Backspace'){
+    setTimeout(()=>{ typedIndicator.textContent = typeInput.value; },0);
+  }
+});
+
+// Animation
+function spawnCorrectAnim(){
+  currentWordEl.animate([{transform:'translateY(-6px) scale(1.02)'},{transform:'translateY(0)'}],{duration:280});
+  ringActive.animate([{stroke:'rgba(255,255,255,1)'},{stroke:'rgba(255,255,255,0.6)'}],{duration:420});
+}
+function spawnWrongAnim(){
+  currentWordEl.animate([{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'translateX(0)'}],{duration:260});
+}
+function levelUpFlash(){
+  // tiny pulse of circle to show level up
+  const el = document.querySelector('.circle-outer');
+  el.animate([{transform:'scale(1.03)'},{transform:'scale(1)'}],{duration:360});
+}
+
+// tính độ chính xác, letters/sec, lưu personal  best
+function finishGame(){
+  playing = false;
+  typeInput.disabled = true;
+  clearInterval(timerInterval);
+  // compute stats
+  const totalTime = Math.max(0.001, (performance.now() - startTime) / 1000);
+  const accuracy = attempts === 0 ? 0 : Math.round((wordsTyped / attempts) * 100);
+  const lps = totalLettersTyped / totalTime;
+  // show overlay
+  statWords.textContent = wordsTyped;
+  statAcc.textContent = accuracy + '%';
+  statLps.textContent = lps.toFixed(2);
+  overlay.style.display = 'flex';
+
+  savePersonalBest({mode:'Progressive', highestLen: currentLen, wordsTyped, accuracy, lps, totalWords: wordsTyped, date: new Date().toISOString()});
+  updatePersonalPanel();
+}
+
+//kỉ luc
+function loadBest(){ try{ return JSON.parse(localStorage.getItem(BEST_KEY) || 'null'); }catch(e){ return null; } }
+function savePersonalBest(stats){
+  const prev = loadBest();
+  let replace = false;
+  if(!prev) replace = true;
+  else {
+    if(stats.lps > prev.lps) replace = true;
+    else if(Math.abs(stats.lps - prev.lps) < 0.0001 && stats.accuracy > prev.accuracy) replace = true;
+    else if(Math.abs(stats.lps - prev.lps) < 0.0001 && stats.accuracy === prev.accuracy && stats.wordsTyped > prev.wordsTyped) replace = true;
+  }
+  if(replace) localStorage.setItem(BEST_KEY, JSON.stringify(stats));
+}
+function updatePersonalPanel(){
+  const b = loadBest();
+  if(!b){
+    personalList.innerHTML = '<div class="mini muted">No personal best yet — play to set a record!</div>';
+  } else {
+    personalList.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <div>
+          <div class="mini muted">Letters/sec</div>
+          <div style="font-weight:900">${b.lps.toFixed(2)}</div>
+          <div class="mini muted">Accuracy</div>
+          <div style="font-weight:900">${b.accuracy}%</div>
+        </div>
+        <div style="text-align:right">
+          <div class="mini muted">Highest Len</div>
+          <div style="font-weight:900">${b.highestLen}</div>
+          <div class="mini muted">Words</div>
+          <div style="font-weight:900">${b.wordsTyped}</div>
+          <div class="mini muted">Date</div>
+          <div style="font-weight:900">${new Date(b.date).toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// xóa kỉ luc
+clearBest.addEventListener('click', ()=>{
+  if(confirm('Clear personal best?')){
+    localStorage.removeItem(BEST_KEY);
+    updatePersonalPanel();
+  }
+});
+
+/* overlay buttons */
+overlayRetry.addEventListener('click', ()=>{
+  overlay.style.display = 'none';
+  startPlay();
+});
+overlayMenu.addEventListener('click', ()=>{
+  overlay.style.display = 'none';
+  resetState();
+});
+
+/* header buttons */
+playBtn.addEventListener('click', ()=> startPlay());
+personalBtn.addEventListener('click', ()=> document.getElementById('personalPanel').scrollIntoView({behavior:'smooth'}));
+
+/* pause / restart */
+pauseBtn.addEventListener('click', ()=>{
+  if(!playing) return;
+  paused = !paused;
+  pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+});
+restartBtn.addEventListener('click', ()=>{
+  if(confirm('Restart current run?')){
+    startPlay();
+  }
+});
+
+// đổi lại kích thước vòng khi khác màn hình
+window.addEventListener('resize', ()=> {
+  initRing();
+  updateRing();
+});
+
+
+(function boot(){
+  resetState();
+  refillQueue();
+  renderWords();
+  initRing();
+  updateRing();
+  updatePersonalPanel();
+  updateStatsUI();
+})();
+</script>
+</body>
+</html>

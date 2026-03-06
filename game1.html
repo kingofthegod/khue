@@ -1,0 +1,631 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>click, click, click forever</title>
+<style>
+ :root{
+  --bg:#0b1020; --panel:#0f1724; --muted:#7a8aa3; --accent:#ffd54a; --good:#3ce06b; --danger:#ff6b6b;
+  --glass: rgba(255,255,255,0.04);
+}
+[data-theme="light"]{
+  --bg:#f3f6fb; --panel:#ffffff; --muted:#475569; --accent:#ffb300; --good:#0bb37a; --danger:#d9534f;
+  --glass: rgba(0,0,0,0.03);
+}
+
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Arial;}
+body{background:var(--bg); color:#e6eef8; display:flex; gap:18px; padding:18px; box-sizing:border-box;}
+[data-theme="light"] body{color:#0b1724;}
+
+/* Layout */
+.shop{
+  width:320px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border-radius:12px;
+  padding:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.35);
+  overflow:auto;
+  height:calc(100vh - 36px);
+  border:1px solid var(--glass);
+}
+.center{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+  min-width:480px; height:calc(100vh - 36px);
+  border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,0.35); 
+  background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+  border:1px solid var(--glass);
+}
+.topbar{position:fixed; right:22px; top:18px; text-align:right; z-index:20;}
+.money{font-weight:800; font-size:20px; color:var(--accent);}
+.persec{font-size:12px; color:var(--muted);}
+
+h2{margin:6px 0 12px 0; letter-spacing:2px;}
+.shop .item{
+  display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:10px; border-radius:10px;
+  background:rgba(255,255,255,0.02); cursor:pointer; transition:transform .12s,opacity .12s; border:1px solid transparent;
+}
+.shop .item.disabled{opacity:.38; cursor:not-allowed;}
+.shop .item.canbuy{box-shadow:0 6px 12px rgba(0,0,0,0.25); transform:translateY(-3px);}
+.shop .item .icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,255,255,0.03);}
+.shop .item .meta{flex:1;}
+.shop .item .meta .name{font-weight:700;}
+.shop .item .meta .desc{font-size:12px; color:var(--muted);}
+.shop .item .price{font-weight:800; color:var(--accent);}
+
+/* Planet icon only */
+.planet-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  border:none;        /* bỏ viền */
+  box-shadow:none;    /* bỏ bóng nếu có */
+  background:none; 
+}
+
+.center-icon {
+  font-size:300px; /* gấp đôi click button */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:auto;
+  height:auto;
+  color:inherit;
+
+  /* loại bỏ viền dày cũ */
+  border:none;        /* bỏ viền */
+  box-shadow:none;    /* bỏ bóng nếu có */
+  background:none;    /* bỏ nền nếu icon có nền */
+}
+.planet-controls {
+  display:flex; gap:18px; align-items:center; margin-top:8px;
+}
+
+/* Click button */
+.click-area{display:flex; gap:18px; align-items:center; justify-content:center; margin-top:8px;}
+#click-btn{
+  width:150px;height:150px;border-radius:50%; font-size:20px; font-weight:800; border:none; cursor:pointer; 
+  background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.05)); color:var(--accent); 
+  box-shadow:0 8px 24px rgba(0,0,0,0.4); position:relative;
+}
+#click-btn:active{transform:scale(.96);}
+
+/* Floating text */
+.floater{position:absolute; pointer-events:none; font-weight:900; text-shadow:0 2px 8px rgba(0,0,0,0.6);}
+
+/* Settings / Achievements */
+.controls{display:flex; gap:8px; margin-top:8px;}
+.small-panel{background:rgba(255,255,255,0.02); padding:10px; border-radius:10px; border:1px solid var(--glass); color:var(--muted);}
+
+/* Login */
+.login{display:flex; gap:8px; align-items:center; margin-bottom:12px;}
+.login input{padding:8px;border-radius:8px;border:1px solid var(--glass); background:transparent;color:inherit;}
+.ach-list{max-height:200px; overflow:auto;}
+.achieved{color:var(--good); font-weight:800;}
+
+/* Responsive small */
+@media (max-width:920px){
+  body{flex-direction:column;padding:12px;}
+  .shop{width:100%; height:auto; max-height:240px; order:2;}
+  .center{min-width:unset; width:100%; order:1; height:auto;}
+  .topbar{position:static; text-align:left; margin-bottom:6px;}
+}
+</style>
+
+</style>
+</head>
+<body data-theme="dark">
+  
+  <div class="topbar">
+    <div class="money" id="moneyDisplay">0 $</div>
+    <div class="persec" id="incomeDisplay">0 $ per second</div>
+    <div style="margin-top:6px; display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn small" id="settingsBtn">⚙ Settings</button>
+      <button class="btn small" id="achBtn">🏆 Achievements</button>
+      <button class="btn small" id="resetBtnTop">🔁 Reset</button>
+    </div>
+  </div>
+
+  
+  <div class="shop">
+    <div class="login">
+      <input id="playerName" placeholder="Tên người chơi..." />
+      <button class="btn small" id="loginBtn">🔐 Login</button>
+      <div style="flex:1"></div>
+      <button class="btn small" id="themeToggle">🌗</button>
+    </div>
+
+    <h2>SHOP</h2>
+    <div id="shopList"></div>
+
+    <div style="margin-top:18px" class="small-panel">
+      <div style="font-weight:800">Info</div>
+      <div style="font-size:13px; color:var(--muted); margin-top:6px;">
+        Mỗi click cơ bản là <strong id="baseClickDisplay">1 $</strong> — nâng item đầu tiên sẽ tăng click. Items passive cộng dồn theo giây.<br>
+        Tiền lưu theo tên người chơi (localStorage).
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="center">
+    <div class="planet-wrap">
+      <div id="planet" class="planet earth" role="img">
+        <div class="center-icon" id="planetIcon">🌍</div>
+        <div class="price-tag" id="planetPrice" style="display:none"></div>
+      </div>
+
+      <div class="planet-controls">
+        <button class="btn" id="prevPlanet">&lt;</button>
+        <div style="text-align:center">
+          <div style="font-weight:900; font-size:22px" id="planetName">EARTH</div>
+          <div style="color:var(--muted); font-size:12px" id="planetSubtitle">Start here</div>
+        </div>
+        <button class="btn" id="nextPlanet">&gt;</button>
+      </div>
+
+      <div class="click-area">
+        <button id="click-btn">CLICK!</button>
+      </div>
+
+      <div class="controls">
+        <button class="btn primary" id="buyPlanetBtn">BUY</button>
+        <button class="btn" id="autoSaveBtn">💾 Auto-save: ON</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="fx-layer" style="position:fixed; inset:0; pointer-events:none; z-index:40;"></div>
+
+<script>
+
+
+ const PLAYER_KEY_PREFIX = "ccc_player_"; //tạo key lưu storage
+const planets = [//dữ liệu các hành tinh(id, name, icon,price,unlock)
+  { id:'earth', name:'EARTH', icon:'🌍', unlockCost:0, shop: [
+      
+      {id:'clicker', name:'Earth Clicker', desc:'Increases value per click by +1 (stackable)', price:200, income:0, clickBoost:1, qty:0},
+      {id:'campfire', name:'Campfire', desc:'Produces 1 $ / s', price:115, income:1, qty:0},
+      {id:'farm', name:'Farm', desc:'Produces 10 $ / s', price:800, income:10, qty:0},
+      {id:'windmill', name:'Windmill', desc:'Produces 100 $ / s', price:10000, income:100, qty:0},
+      {id:'factory', name:'Factory', desc:'Produces 1000 $ / s', price:75000, income:1000, qty:0},
+    ]},
+  { id:'mars', name:'SATURN', icon:'🪐', unlockCost:1000000, shop: [
+      {id:'mars_clicker', name:'Saturnian Clicker', desc:'+2 click value', price:1200000, income:0, clickBoost:500, qty:0},
+      {id:'miner', name:'Miner', desc:'Produces 10000 $ / s', price:5000000, income:10000, qty:0},
+      {id:'colony', name:'Colony', desc:'Produces 20000 $ / s', price:25000000, income:20000, qty:0},
+    ]},
+];
+
+// lưu trạng thái game hiện tại (lưu lại vô storage)
+let state = {
+  player: null,
+  money: 0,
+  baseClick: 1,
+  clickMultiplier: 1, 
+  incomePerSec: 0,
+  planetIndex: 0,
+  autoSave: true,
+  achievements: { allBought: false, rich100m: false },
+  lastTick: Date.now()
+};
+
+/* Helpers */
+const $ = id => document.getElementById(id);
+const formatNumber = n => {
+  // format tiền
+  if (n >= 1e9) return (n/1e9).toFixed(2).replace(/\.00$/,'') + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2).replace(/\.00$/,'') + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(2).replace(/\.00$/,'K');
+  return Math.floor(n).toString();
+};
+
+// lưu login,Trả về true nếu có dữ liệu, false nếu không.
+function storageKeyForPlayer(player, key){
+  const name = (player||'guest').toLowerCase();
+  return PLAYER_KEY_PREFIX + name + "_" + key;
+}
+function saveToStorage(){
+  if(!state.player) return;
+  const sk = storageKeyForPlayer(state.player, 'save');
+  const payload = {
+    money: state.money,
+    baseClick: state.baseClick,
+    clickMultiplier: state.clickMultiplier,
+    planetIndex: state.planetIndex,
+    planetsData: planets.map(p=>p.shop.map(it=>({id:it.id, qty:it.qty}))),
+    achievements: state.achievements,
+  };
+  localStorage.setItem(sk, JSON.stringify(payload));
+}
+// Lấy dữ liệu JSON, parse, restore các field về state.
+function loadFromStorage(player){
+  const sk = storageKeyForPlayer(player,'save');
+  const raw = localStorage.getItem(sk);
+  if(!raw) return false;
+  try{
+    const data = JSON.parse(raw);
+    state.money = data.money || 0;
+    state.baseClick = data.baseClick || 1;
+    state.clickMultiplier = data.clickMultiplier || 1;
+    state.planetIndex = data.planetIndex || 0;
+    state.achievements = data.achievements || state.achievements;
+  
+    if(data.planetsData && Array.isArray(data.planetsData)){
+      data.planetsData.forEach((arr, idx)=>{
+        if(!planets[idx]) return;
+        arr.forEach(saved=>{
+          const it = planets[idx].shop.find(x=>x.id===saved.id);
+          if(it) it.qty = saved.qty || 0;
+        });
+      });
+    }
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+
+// UI
+const shopListEl = $('shopList');
+const moneyEl = $('moneyDisplay');
+const incomeEl = $('incomeDisplay');
+const baseClickEl = $('baseClickDisplay');
+const planetEl = $('planet');
+const planetNameEl = $('planetName');
+const planetSubtitleEl = $('planetSubtitle');
+const planetPriceEl = $('planetPrice');
+const planetIconEl = $('planetIcon');
+const clickBtn = $('click-btn');
+// tạo thẻ với mỗi item, (check xem đủ tiền ko)
+function renderShop(){
+  shopListEl.innerHTML = '';
+  const p = planets[state.planetIndex];
+  p.shop.forEach(item=>{
+    const div = document.createElement('div');
+    div.className = 'item';
+    if(state.money >= item.price) div.classList.add('canbuy');
+    if(state.money < item.price) div.classList.add('disabled');
+    div.dataset.itemId = item.id;
+
+    div.innerHTML = `
+      <div class="icon">${item.id.includes('click')? '🖱️' : (item.id.includes('farm')? '🌾' : (item.id.includes('campfire')? '🔥' : (item.id.includes('factory')?'🏭':'⚙️')) )}</div>
+      <div class="meta">
+        <div class="name">${item.name} <span style="font-weight:700; color:var(--muted)">x${item.qty||0}</span></div>
+        <div class="desc">${item.desc} ${item.income?(' • '+item.income+' $/s') : ''}${item.clickBoost?(' • +'+item.clickBoost+' / click') : ''}</div>
+      </div>
+      <div class="price">${formatNumber(item.price)} $</div>
+    `;
+    // Gắn để buy item (khi đủ tiền), nếu không đủ thì làm effect nhanh.
+    div.addEventListener('click', ()=>{
+      if(state.money >= item.price){
+        buyItem(item);
+        renderAll();
+      } else {
+        
+        div.style.transform = 'translateX(6px)';
+        setTimeout(()=>div.style.transform='',80);
+      }
+    });
+    shopListEl.appendChild(div);
+  });
+}
+// trừ tiền , cập nhật 
+function buyItem(item){
+  state.money -= item.price;
+  item.qty = (item.qty||0) + 1;
+  // tăng tiền sau khi mua
+  item.price = Math.round(item.price * 1.15);
+  // áp dụng boots*
+  if(item.clickBoost){
+    state.clickMultiplier += item.clickBoost;
+  }
+  recalcIncome();
+  checkAchievements();
+  spawnFloatingText(`-${formatNumber(Math.round(item.price/1.15))}$`, {el: $('fx-layer')});
+  if(state.autoSave) saveToStorage();
+}
+
+//  tính tổng thu nhập mỗi giây từ tất cả items trên tất cả planets
+function recalcIncome(){
+  let total = 0;
+  planets.forEach(p=>{
+    p.shop.forEach(it=>{
+      total += (it.income || 0) * (it.qty || 0);
+    });
+  });
+  state.incomePerSec = total;
+}
+
+// cập nhật khu vực hiển thị: tiền, income/sec, baseClick, planet name/icon, lock UI.
+function renderTop(){
+  moneyEl.textContent = `${formatNumber(Math.floor(state.money))} $`;
+  incomeEl.textContent = `${formatNumber(state.incomePerSec)} $ per second`;
+  baseClickEl.textContent = `${state.baseClick * state.clickMultiplier} $`;
+  planetNameEl.textContent = planets[state.planetIndex].name;
+  planetSubtitleEl.textContent = planets[state.planetIndex].id.toUpperCase();
+  planetIconEl.textContent = planets[state.planetIndex].icon;
+  // mở khóa hành tinh, check tiền
+  const cur = planets[state.planetIndex];
+  if(cur.unlockCost && cur.unlockCost > 0 && !cur.unlocked){
+    planetEl.classList.add('locked');
+    planetPriceEl.style.display = 'block';
+    planetPriceEl.textContent = `${formatNumber(cur.unlockCost)} $ to unlock`;
+    $('buyPlanetBtn').style.display = 'inline-block';
+    $('buyPlanetBtn').disabled = state.money < cur.unlockCost;
+  } else {
+    planetEl.classList.remove('locked');
+    planetPriceEl.style.display = 'none';
+    $('buyPlanetBtn').style.display = 'none';
+  }
+}
+
+
+function renderAll(){
+  recalcIncome();
+  renderShop();
+  renderTop();
+}
+
+/* ========== Click handling & floaty +1 ========== */
+clickBtn.addEventListener('click', ()=>{
+  const add = state.baseClick * state.clickMultiplier;
+  state.money += add;
+  spawnFloatingText('+' + formatNumber(add) + '$', {x:null,y:null, color:'var(--accent)'});
+  renderAll();
+  playClickSound();
+  checkAchievements();
+});
+
+/* floating text vị trí ngẫu nhiên*/
+function spawnFloatingText(text, opts = {}){
+  const layer = $('fx-layer');
+  const el = document.createElement('div');
+  el.className = 'floater';
+  el.style.left = (opts.x !== undefined ? opts.x + 'px' : (window.innerWidth/2 + (Math.random()*80-40)) + 'px');
+  el.style.top = (opts.y !== undefined ? opts.y + 'px' : (window.innerHeight/2 + (Math.random()*-80)) + 'px');
+  el.style.fontSize = '18px';
+  el.style.color = opts.color || 'var(--accent)';
+  el.textContent = text;
+  layer.appendChild(el);
+  // animation
+  const dx = (Math.random()*80-40);
+  const dy = -120 + Math.random()*-40;
+  el.animate([
+    { transform: 'translate(0,0)', opacity:1 },
+    { transform: `translate(${dx}px, ${dy}px)`, opacity:0 }
+  ], { duration: 900, easing:'cubic-bezier(.22,.9,.3,1)' });
+  setTimeout(()=>el.remove(),920);
+}
+
+/* sound */
+let clickAudio = null;
+function playClickSound(){
+  try{
+    if(!clickAudio){
+      clickAudio = new Audio(); clickAudio.src = ''; // empty placeholder for future
+    }
+    // optional: no external sounds to keep file local. We'll produce subtle beep via WebAudio:
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 600 + Math.random()*200;
+    g.gain.value = 0.02;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    setTimeout(()=>{ o.stop(); ctx.close(); }, 180);
+  }catch(e){}
+}
+
+/* ========== cập nhật tiền ========== */
+function tick(){
+  const now = Date.now();
+  let dt = (now - state.lastTick) / 1000.0; // seconds
+  if(dt > 1.0) dt = 1.0; // avoid huge jumps
+  state.lastTick = now;
+  // add income per second * dt
+  state.money += state.incomePerSec * dt;
+  renderAll();
+}
+setInterval(tick, 250); // quarter-second updates
+
+/* ========== khi mua planet thì trừ tiền r cập nhật ========== */
+$('prevPlanet').addEventListener('click', ()=>{
+  state.planetIndex = Math.max(0, state.planetIndex - 1);
+  renderAll();
+});
+$('nextPlanet').addEventListener('click', ()=>{
+  state.planetIndex = Math.min(planets.length-1, state.planetIndex + 1);
+  renderAll();
+});
+$('buyPlanetBtn').addEventListener('click', ()=>{
+  const cur = planets[state.planetIndex];
+  if(cur.unlockCost && state.money >= cur.unlockCost){
+    state.money -= cur.unlockCost;
+    cur.unlocked = true;
+    spawnFloatingText('Unlocked ' + cur.name + '!', {color:'var(--good)'});
+    confettiBurst();
+    renderAll();
+    saveToStorage();
+  }
+});
+
+// thành tựu
+function checkAchievements(){
+  
+  const allBought = planets.every(p => p.shop.every(it => it.qty && it.qty > 0));
+  if(allBought && !state.achievements.allBought){
+    state.achievements.allBought = true;
+    spawnFloatingText('Achievement: Bought everything!', {color:'var(--good)'});
+    confettiBurst();
+  }
+  if(state.money >= 100000000 && !state.achievements.rich100m){
+    state.achievements.rich100m = true;
+    spawnFloatingText('Achievement: 100,000,000 $!', {color:'var(--good)'});
+    confettiBurst();
+  }
+  // update achievements UI if open
+  renderAchievements();
+}
+
+/* Achievements panel */
+const achBtn = $('achBtn');
+achBtn.addEventListener('click', ()=> {
+  const panel = createOverlay(`<div style="padding:18px; max-width:420px;">
+    <h3>🏆 Achievements</h3>
+    <div class="ach-list">
+      <div>${state.achievements.allBought ? '<span class="achieved">✔</span>' : '○'} Mua tất cả đồ trong shop</div>
+      <div>${state.achievements.rich100m ? '<span class="achieved">✔</span>' : '○'} Đạt 100,000,000 $</div>
+    </div>
+    <div style="text-align:right; margin-top:12px;">
+      <button class="btn" id="closeAch">Close</button>
+    </div>
+  </div>`);
+  panel.querySelector('#closeAch').addEventListener('click', ()=> panel.remove());
+});
+function renderAchievements(){ /* placeholder for live UI if needed */ }
+
+/* ========== Settings / Login / Auto-save / Theme ========== */
+$('settingsBtn').addEventListener('click', ()=>{
+  const panel = createOverlay(`<div style="padding:18px; max-width:420px;">
+    <h3>⚙ Settings</h3>
+    <div style="margin-top:8px;">Auto-save: <strong>${state.autoSave? 'ON': 'OFF'}</strong></div>
+    <div style="margin-top:8px;">
+      <button class="btn small" id="toggleAuto">${state.autoSave? 'Turn off' : 'Turn on'}</button>
+      <button class="btn small" id="clearLocal">Clear saves (for current player)</button>
+    </div>
+    <div style="text-align:right; margin-top:12px;">
+      <button class="btn" id="closeSet">Close</button>
+    </div>
+  </div>`);
+  panel.querySelector('#toggleAuto').addEventListener('click', ()=>{
+    state.autoSave = !state.autoSave;
+    $('autoSaveBtn').textContent = '💾 Auto-save: ' + (state.autoSave? 'ON': 'OFF');
+    panel.remove(); // close to avoid complicated re-render
+  });
+  panel.querySelector('#clearLocal').addEventListener('click', ()=>{
+    if(!state.player) return alert('Login trước đã!');
+    const key = storageKeyForPlayer(state.player,'save');
+    localStorage.removeItem(key);
+    alert('Deleted save for ' + state.player);
+    panel.remove();
+  });
+  panel.querySelector('#closeSet').addEventListener('click', ()=> panel.remove());
+});
+
+/* login */
+$('loginBtn').addEventListener('click', ()=> {
+  const name = $('playerName').value.trim();
+  if(!name) return alert('Nhập tên người chơi để lưu tiến độ.');
+  state.player = name;
+  // reset planets qtys to zero to avoid mixing players? We'll load first
+  const loaded = loadFromStorage(name);
+  if(!loaded){
+    // new player, reset some fields but keep default planets
+    state.money = 0; state.baseClick = 1; state.clickMultiplier = 1;
+    planets.forEach(p=>p.shop.forEach(it=>it.qty = it.qty||0));
+    state.achievements = {allBought:false, rich100m:false};
+  }
+  $('playerName').disabled = true;
+  $('loginBtn').textContent = '🔓 ' + name;
+  renderAll();
+});
+
+//  dark/light mode
+$('themeToggle').addEventListener('click', ()=>{
+  const el = document.documentElement;
+  const theme = el.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  el.setAttribute('data-theme', theme);
+  if(state.player) localStorage.setItem(storageKeyForPlayer(state.player,'theme'), theme);
+});
+
+// lưu theme
+function restoreThemeForPlayer(player){
+  const key = storageKeyForPlayer(player,'theme');
+  const t = localStorage.getItem(key);
+  if(t) document.documentElement.setAttribute('data-theme', t);
+}
+
+/* Reset top-right reset */
+$('resetBtnTop').addEventListener('click', ()=>{
+  if(!state.player){ if(!confirm('Bạn chưa login, reset toàn bộ tiến độ cho current session?')) return; }
+  if(!confirm('Reset progress (this will remove saved data for current player if logged)?')) return;
+  if(state.player) localStorage.removeItem(storageKeyForPlayer(state.player,'save'));
+  // restore defaults
+  state.money = 0; state.baseClick = 1; state.clickMultiplier = 1; planets.forEach(p=>p.shop.forEach(it=>it.qty=0));
+  state.achievements = {allBought:false, rich100m:false};
+  renderAll();
+});
+
+/* auto-save periodically */
+setInterval(()=>{ if(state.autoSave && state.player) saveToStorage(); }, 5000);
+
+// Animation
+  const layer = $('fx-layer');
+  const count = 30;
+  for(let i=0;i<count;i++){
+    const el = document.createElement('div');
+    el.style.position='absolute'; el.style.width='10px'; el.style.height='14px';
+    el.style.left = (window.innerWidth/2 + (Math.random()*300 - 150)) + 'px';
+    el.style.top = (window.innerHeight/2 + (Math.random()*100 - 50)) + 'px';
+    el.style.background = ['#ffd54a','#ff6b6b','#3ce06b','#8fd3ff'][Math.floor(Math.random()*4)];
+    el.style.transform = 'rotate('+(Math.random()*360)+'deg)';
+    el.style.borderRadius='2px'; el.style.zIndex=9999;
+    layer.appendChild(el);
+    const dx = (Math.random()*400 - 200); const dy = (Math.random()*-400 - 60);
+    el.animate([{ transform:'translate(0,0) rotate(0deg)', opacity:1 }, { transform:`translate(${dx}px, ${dy}px) rotate(720deg)`, opacity:0 }], { duration: 1200 + Math.random()*600, easing:'cubic-bezier(.2,.8,.2,1)' });
+    setTimeout(()=>el.remove(), 1800 + Math.random()*400);
+  }
+
+
+/* overlay helper */
+function createOverlay(html){
+  const bg = document.createElement('div');
+  bg.style.position='fixed'; bg.style.inset=0; bg.style.background='rgba(0,0,0,0.55)'; bg.style.zIndex=1000;
+  const box = document.createElement('div');
+  box.style.position='absolute'; box.style.left='50%'; box.style.top='50%'; box.style.transform='translate(-50%,-50%)';
+  box.style.background='var(--panel)'; box.style.borderRadius='10px'; box.style.padding='12px'; box.style.color='inherit';
+  box.innerHTML = html;
+  bg.appendChild(box);
+  document.body.appendChild(bg);
+  return bg;
+}
+
+/* ========== Restore & Init ========== */
+function init(){
+  // set initial planet unlock states (earth unlocked)
+  planets.forEach((p, idx)=> p.unlocked = idx===0 ? true : false);
+  // set some default starting money for demo
+  state.money = 0;
+  recalcIncome();
+  renderAll();
+  // click visual tiny scale effect
+  let down=false;
+  clickBtn.addEventListener('mousedown', ()=> { clickBtn.style.transform = 'scale(.98)'; down=true; });
+  window.addEventListener('mouseup', ()=> { if(down){ clickBtn.style.transform=''; down=false;}});
+}
+init();
+
+setInterval(renderShop, 500);
+
+// ==========test(cheat đành cho admin , +tăng 1000 tiền , --1000tieenf)
+window.addEventListener('keydown', (e)=>{
+  if(e.key==='=' || e.key==='+'){ state.money += 100000; renderAll(); }
+  if(e.key==='p'){ // cheat: unlock next planet if any
+    const idx = state.planetIndex;
+    if(planets[idx].unlockCost){ state.money = Math.max(state.money, planets[idx].unlockCost); renderAll(); }
+  }
+});
+
+// nhớ đăng nhập cuối
+(function tryAutoLogin(){
+  const last = localStorage.getItem('ccc_last_player');
+  if(last){ $('playerName').value = last; $('loginBtn').click(); restoreThemeForPlayer(last); }
+  // listen to login to save last
+  $('loginBtn').addEventListener('click', ()=> {
+    if($('playerName').value.trim()) localStorage.setItem('ccc_last_player', $('playerName').value.trim());
+  });
+})();
+
+</script>
+</body>
+</html>

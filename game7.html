@@ -1,0 +1,991 @@
+
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pixel Coloring — Masked Color-by-Number (Upgraded)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<style>
+  :root{
+    --bg1:#2b042f; --bg2:#2e0b2b;
+    --panel: rgba(255,255,255,0.03);
+    --card-bg: rgba(0,0,0,0.45);
+    --muted:#cbbfe0;
+    --accent1: #ff8a00; --accent2: #a433ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:"Inter",system-ui,Segoe UI,Roboto,Arial;background: linear-gradient(135deg,var(--bg1),var(--bg2));color:#f3e9f7;}
+  .app{display:grid;grid-template-columns:300px 1fr 260px;gap:18px;padding:18px;height:100vh;}
+  .sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:10px;overflow:auto}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 6px 20px rgba(164,51,255,0.18)}
+  .brand h3{margin:0;font-size:16px}
+  .muted{color:var(--muted);font-size:13px}
+  .gallery{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .thumb{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;background:transparent;cursor:pointer}
+  .thumb img{width:64px;height:48px;object-fit:cover;border-radius:8px}
+  .thumb .tmeta{font-size:13px}
+  .editorWrap{display:flex;flex-direction:column;gap:10px}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{padding:8px 10px;border-radius:8px;border:none;background:linear-gradient(45deg,#42a5f5,#478ed1);color:#fff;cursor:pointer;font-weight:600}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+  .canvasArea{display:flex;gap:12px;padding:12px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 12px 40px rgba(0,0,0,0.6);min-height:70vh;align-items:center;justify-content:center;position:relative}
+  #editorCanvas{background:#161616;image-rendering:pixelated;display:block;max-width:100%;max-height:74vh;border-radius:8px;cursor:crosshair}
+  .centerOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;background:transparent}
+  .overlayNum{background:rgba(0,0,0,0.5);padding:6px 10px;border-radius:12px;font-weight:700;color:#fff}
+  .zoomControls{position:absolute;left:12px;bottom:12px;display:flex;gap:8px}
+  .zoomBar{position:absolute;left:120px;bottom:20px;height:8px;border-radius:8px;background:linear-gradient(90deg,#2af598,#009efd);width:160px}
+  .particles-layer{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;overflow:hidden}
+  .palette{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px;align-items:center}
+  .pal-col{display:flex;flex-direction:column;gap:10px;align-items:center;width:100%}
+  .pal-badge{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer;justify-content:flex-start;width:100%;background:rgba(255,255,255,0.02)}
+  .pal-badge .sw{width:36px;height:36px;border-radius:6px;flex-shrink:0;box-shadow:0 6px 18px rgba(0,0,0,0.35)}
+  .pal-meta{flex:1;display:flex;flex-direction:column;align-items:flex-start}
+  .pal-meta .idx{font-weight:700}
+  .completed-badge{background:green;padding:4px 8px;border-radius:8px;color:#fff;font-weight:700}
+  .selectedColorPreview{width:72px;height:72px;border-radius:10px;border:2px solid rgba(255,255,255,0.08)}
+  .actions{display:flex;flex-direction:column;gap:8px;width:100%}
+  .actions button{width:100%;padding:8px;border-radius:8px;background:linear-gradient(45deg,#42a5f5,#478ed1);border:none;color:#fff;font-weight:600;cursor:pointer}
+  .muted.small{font-size:12px}
+  @media (max-width:1100px){
+    .app{grid-template-columns:1fr;grid-auto-rows:auto;padding:12px;overflow:auto}
+    .palette{order:3}
+    .sidebar{order:2}
+    .editorWrap{order:1}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+  
+    <aside class="sidebar" id="leftSidebar">
+      <div class="brand">
+        <div class="logo">CA</div>
+        <div>
+          <h3>Color Artist</h3>
+          <div class="muted">Masked Color-by-Number (Upgraded)</div>
+        </div>
+      </div>
+
+      <div class="muted small">Collections</div>
+      <div class="gallery" id="galleryList"></div>
+    </aside>
+
+    
+    <main class="editorWrap">
+      <div class="controls">
+        <button class="btn ghost" id="backGallery">← Gallery</button>
+        <button class="btn" id="resetImage">Reset</button>
+        <button class="btn" id="undoBtn">Undo</button>
+        <button class="btn" id="redoBtn">Redo</button>
+        <button class="btn" id="fillTool">Fill</button>
+        <button class="btn" id="downloadBtn">Download PNG</button>
+        <label class="muted small" style="margin-left:10px">Grid cols</label>
+        <input id="gridSize" type="number" min="8" max="64" value="32" style="width:80px;padding:6px;border-radius:8px;border:none">
+      </div>
+
+      <div class="canvasArea" id="canvasArea">
+        <canvas id="editorCanvas" width="800" height="560"></canvas>
+        <div class="particles-layer" id="particleLayer"></div>
+        <div class="centerOverlay"><div class="overlayNum" id="overlayNum">1</div></div>
+        <div class="zoomControls">
+          <div class="btn" id="zoomIn">+</div>
+          <div class="btn" id="zoomOut">−</div>
+        </div>
+        <div class="zoomBar" id="zoomBar"></div>
+      </div>
+    </main>
+
+   
+    <aside class="palette">
+      <div class="pal-col">
+        <div class="muted">Palette (image colors)</div>
+        <div id="paletteList" style="width:100%"></div>
+        <div style="display:flex;gap:8px;width:100%;align-items:center;justify-content:space-between">
+          <div class="muted">Selected</div>
+          <div id="progressSummary" class="muted small"></div>
+        </div>
+        <div id="selectedPreview" class="selectedColorPreview"></div>
+      </div>
+
+      <div class="pal-col actions">
+        <button id="toggleMask" class="btn ghost">Toggle Mask</button>
+        <button id="restartBtn" class="btn ghost">Restart Image</button>
+      </div>
+    </aside>
+  </div>
+
+<script>
+// hằng số cấu hình
+const SAMPLE_COUNT = 10;//10 mau
+const ASSET_PREFIX = 'assets/sample';
+const ASSET_EXT = '.png';//đng dẫn
+const BACKGROUND_LOCK_COLOR = '#000000';
+const PARTICLE_MIN = 3, PARTICLE_MAX = 6;
+const PARTICLE_TIME = 0.45;
+const UNDO_LIMIT = 40;
+const KMEANS_ITERS = 10;
+const MERGE_DISTANCE_THRESHOLD = 25; //tối đa
+
+// //Giải thích dễ hiểu:
+// originalPixelData → màu thật của hình sample sau khi phân chia thành lưới pixel.
+
+// paintedData → người chơi đã tô ô pixel nào rồi.
+
+// palette → danh sách màu (1–25 màu) được gom bằng K-means.
+
+// colorIndexMap[colorHex] = number → map màu → số thứ tự.
+
+// paintingMode = 'paint' hoặc 'erase'.
+
+// zoom & pan → dùng để zoom ảnh.
+
+// undo/redo stack lưu lịch sử pixel.
+
+//offscreenCanvas → dùng để render nhanh hơn nếu trình duyệt hỗ trợ.
+let canvas = document.getElementById('editorCanvas');
+let ctx = canvas.getContext('2d');
+let particleLayer = document.getElementById('particleLayer');
+let galleryList = document.getElementById('galleryList');
+let paletteList = document.getElementById('paletteList');
+let selectedPreview = document.getElementById('selectedPreview');
+let overlayNum = document.getElementById('overlayNum');
+let gridInput = document.getElementById('gridSize');
+let progressSummary = document.getElementById('progressSummary');
+
+let currentSampleIndex = 1;
+let currentImage = null;
+let pixelCols = parseInt(gridInput.value) || 32;
+let pixelRows = 32;
+let originalPixelData = []; // [row][col] hex
+let paintedData = []; // [row][col] hex or null
+let palette = []; // [{color,count,index,avgDistToCenter}]
+let colorIndexMap = {}; // color -> index number
+let selectedColor = null;
+let allowPaintMask = [];
+let painting = false, paintingMode = 'paint';
+let isPanning = false, panStart = null, panX=0, panY=0, zoom = 1;
+let pixelUndo = [], pixelRedo = [];
+let showMask = true;
+let offscreenAvailable = typeof OffscreenCanvas === 'function';
+let offscreen = null, offscreenCtx = null;
+
+
+function hexFromRGBA(r,g,b){ return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+}
+function rgbToArray(rgb){ return [rgb[0],rgb[1],rgb[2]]; }
+function colorDistSq(a,b){
+  
+  const da = a, db = b;
+  const dr = da[0]-db[0], dg = da[1]-db[1], dbb = da[2]-db[2];
+  return dr*dr + dg*dg + dbb*dbb;
+}
+function colorDist(a,b){ return Math.sqrt(colorDistSq(a,b)); }
+function deepCopy2D(a){ return a.map(r=>r.slice()); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+// Tạo danh sách các hình sample dạng thumbnail.
+// Click vào hình → gọi loadSample(i) để mở hình đó vào canvas.
+function buildGallery(){
+  galleryList.innerHTML='';
+  for(let i=1;i<=SAMPLE_COUNT;i++){
+    const row = document.createElement('div'); row.className='thumb';
+    const img = document.createElement('img'); img.src = `${ASSET_PREFIX}${i}${ASSET_EXT}`; img.alt = `sample${i}`;
+    const meta = document.createElement('div'); meta.className='tmeta'; meta.innerHTML = `<div>Sample ${i}</div><div class="muted small">Click to open</div>`;
+    row.appendChild(img); row.appendChild(meta);
+    row.addEventListener('click', ()=> loadSample(i));
+    galleryList.appendChild(row);
+  }
+}
+buildGallery();
+
+// Canvas auto resize theo cửa sổ.
+
+// Sử dụng devicePixelRatio để render sắc nét.
+
+// Khởi tạo offscreenCanvas để render chi tiết pixel nhanh hơn.
+
+// Gọi render() để vẽ lại.
+function resizeCanvas(){
+  const wrap = canvas.parentElement;
+  const w = Math.max(320, Math.floor(wrap.clientWidth - 20));
+  const h = Math.max(240, Math.floor(wrap.clientHeight - 20));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(offscreenAvailable){
+    offscreen = new OffscreenCanvas(pixelCols, pixelRows);
+    offscreenCtx = offscreen.getContext('2d');
+  }
+  render();
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ảnh càng nhiều pixel càng nhiểu màu
+function maxPaletteForGrid(cols){
+  if(cols <= 32) return 25;
+  if(cols <= 48) return 50;
+  if(cols <= 64) return 75;
+
+  return Math.min(150, Math.round(cols*cols/10));
+}
+
+// load một mẫu tranh pixel
+async function loadSample(index){                                            // Hàm chính để load một sample theo index
+  currentSampleIndex = index;                                                // Lưu index mẫu hiện tại
+  overlayNum.textContent = index;                                            // Hiển thị index lên UI
+  pixelCols = parseInt(gridInput.value) || 32;                               // Số cột pixel, đọc từ input (mặc định 32)
+  panX = panY = 0; zoom = 1;                                                 // Reset trạng thái pan/zoom
+  paintedData = [];                                                          // Mảng ghi pixel do người chơi tô
+  pixelUndo=[]; pixelRedo=[];                                                // Reset undo/redo
+  selectedColor = null;                                                      // Màu đang chọn
+  showMask = true;                                                           // Hiển thị mask gợi ý
+  paintingMode = 'paint';                                                    // Mode mặc định: tô
+
+  const key = storageKey(index, pixelCols);                                  // Tạo key lưu localStorage
+  const saved = localStorage.getItem(key);                                   // Thử lấy trạng thái cũ nếu có
+
+  const img = new Image();                                                   // Tạo object ảnh
+  img.crossOrigin = 'anonymous';                                             // Tránh lỗi CORS khi load ảnh
+  img.src = `${ASSET_PREFIX}${index}${ASSET_EXT}`;                           // Đường dẫn ảnh
+  await new Promise(res=> { img.onload = res; img.onerror = res; });         // Chờ ảnh load xong
+  currentImage = img;                                                        // Lưu ảnh hiện tại
+
+  const aspect = img.height / img.width;                                     // Tính tỉ lệ ảnh để giữ nguyên hình dạng
+  pixelRows = Math.max(1, Math.round(pixelCols * aspect));                   // Tính số hàng pixel dựa trên số cột và tỉ lệ ảnh
+
+  // Chuẩn bị canvas offscreen để đọc màu từ ảnh
+  const off = document.createElement('canvas');                              // Canvas tạm để xử lý ảnh
+  off.width = img.width; off.height = img.height;                            // Set kích thước canvas
+  const offCtxLocal = off.getContext('2d');                                  // Lấy context 2D
+  offCtxLocal.drawImage(img,0,0);                                            // Vẽ ảnh vào canvas tạm
+
+  const blockW = img.width / pixelCols;                                      // Chiều rộng mỗi pixel block
+  const blockH = img.height / pixelRows;                                     // Chiều cao mỗi pixel block
+
+  originalPixelData = [];                                                    // Mảng màu gốc từng pixel
+  paintedData = [];                                                          // Mảng pixel người chơi đã tô
+  const freqMap = new Map();                                                 // Thống kê tần suất xuất hiện từng màu
+  const posMap = new Map();                                                  // Lưu vị trí của mỗi màu để tính độ ưu tiên tâm ảnh
+
+  // Quét từng block để tính màu trung bình
+  for(let r=0;r<pixelRows;r++){                                              // Lặp từng hàng
+    const row = []; const prow = [];                                         // row: màu gốc / prow: màu tô
+    for(let c=0;c<pixelCols;c++){                                            // Lặp từng cột
+      const sx = Math.floor(c*blockW), sy = Math.floor(r*blockH);            // Tọa độ x,y bắt đầu block
+      const sw = Math.max(1, Math.floor(blockW)), sh = Math.max(1, Math.floor(blockH)); // Kích thước block
+      const data = offCtxLocal.getImageData(                                  // Lấy dữ liệu pixel trong block
+        sx,sy,
+        Math.min(sw, off.width - sx),
+        Math.min(sh, off.height - sy)
+      ).data;
+
+      let rr=0,gg=0,bb=0, cnt=0;                                             // Tổng màu r,g,b
+      for(let i=0;i<data.length;i+=4){                                       // Lặp từng pixel trong block
+        rr+=data[i]; gg+=data[i+1]; bb+=data[i+2]; cnt++;                     // Cộng các giá trị màu
+      }
+      if(cnt===0) cnt=1;                                                     // Tránh chia 0
+
+      const hex = hexFromRGBA(                                               // Tính màu trung bình → hex
+        Math.round(rr/cnt),
+        Math.round(gg/cnt),
+        Math.round(bb/cnt)
+      );
+
+      row.push(hex);                                                         // Thêm màu vào hàng pixel gốc
+      prow.push(null);                                                       // Pixel chưa tô → null
+
+      freqMap.set(hex, (freqMap.get(hex)||0)+1);                             // Tăng tần suất màu
+      if(!posMap.has(hex)) posMap.set(hex, []);                              // Tạo mảng vị trí nếu chưa có
+      posMap.get(hex).push([r,c]);                                           // Lưu vị trí màu
+    }
+    originalPixelData.push(row);                                             // Lưu hàng vào pixel gốc
+    paintedData.push(prow);                                                  // Lưu hàng vào pixel tô
+  }
+
+  // Phát hiện background & khóa màu nền
+  detectAndLockBackground();                                                  // Tự động tìm nền và đổi màu sang background lock
+
+  // Cluster màu → tạo bảng màu palette
+  const uniqueColors = Array.from(freqMap.keys());                            // Danh sách màu độc nhất
+  const maxPalette = maxPaletteForGrid(pixelCols);                            // Số màu tối đa được phép dùng
+  const targetK = Math.min(uniqueColors.length, maxPalette);                  // K = min(số màu, max palette)
+
+  // Chuẩn bị dữ liệu cho K-means
+  const colorItems = uniqueColors.map(col=>{
+    const [r,g,b] = hexToRgb(col);                                            // Convert hex → RGB
+    return {
+      hex:col,
+      count: freqMap.get(col)||0,
+      rgb:[r,g,b],
+      positions: posMap.get(col) || []                                        // Lưu tất cả vị trí của màu này
+    };
+  });
+
+  const clusters = kmeansCluster(colorItems, targetK);                         // Chạy K-means rgb
+
+  // Chọn màu đại diện cho từng cụm theo màu xuất hiện nhiều nhất
+  const clusterReps = clusters.map(cluster=>{
+    const items = cluster.items;
+    let best = items[0];                                                      // Mặc định item đầu là tốt nhất
+    for(const it of items){
+      if(it.count > best.count) best = it;                                    // Chọn màu xuất hiện nhiều nhất trong cluster
+    }
+    return {
+      color:best.hex,
+      count: items.reduce((s,i)=>s+i.count,0),                                // Tổng tần suất trong cluster
+      positions: items.flatMap(i=>i.positions)                                // Tất cả vị trí trong cluster
+    };
+  });
+
+  // Tạo palette tạm để tính độ ưu tiên theo tâm ảnh
+  const centerR = pixelRows/2, centerC = pixelCols/2;                         // Tâm pixel grid
+  const paletteTmp = clusterReps.map((rep, idx)=>{
+    let total = 0, cnt=0;
+    for(const p of rep.positions){
+      const dr = p[0]-centerR, dc = p[1]-centerC;                             // Khoảng cách tới tâm
+      total += Math.sqrt(dr*dr + dc*dc);
+      cnt++;
+    }
+    const avg = cnt? total/cnt : (Math.max(pixelCols,pixelRows)/2);           // Tính trung bình
+    return {
+      color: rep.color,
+      count: rep.count,
+      avgCenterDist: avg                                                      // Màu càng gần tâm càng ưu tiên
+    };
+  });
+
+  // Sort theo quy tắc:
+  // 1. màu nhiều nhất → trước
+  // 2. nếu bằng nhau → màu gần tâm hơn → trước
+  paletteTmp.sort((a,b)=>{
+    if(b.count !== a.count) return b.count - a.count;
+    return a.avgCenterDist - b.avgCenterDist;
+  });
+
+  // Giới hạn số lượng palette theo maxPalette
+  palette = paletteTmp.slice(0, maxPalette).map((p,i)=>({
+    color:p.color,
+    count:p.count,
+    index:i+1,
+    avgCenterDist:p.avgCenterDist
+  }));
+
+  // Map hex → index trong palette
+  colorIndexMap = {};
+  palette.forEach(p=> colorIndexMap[p.color]=p.index);
+
+  // Ánh xạ toàn bộ originalPixelData sang màu gần nhất trong palette
+  remapOriginalToPalette();
+
+  // Recount palette again sau remap
+  recomputePaletteCountsAndSort();
+
+  // Nếu có save ở localStorage thì thử khôi phục
+  if(saved){
+    try{
+      const parsed = JSON.parse(saved);
+      if(parsed && parsed.pixelCols === pixelCols && parsed.pixelRows === pixelRows){
+        paintedData = parsed.paintedData;
+        // Kiểm tra màu tô có còn trong palette mới hay không
+        const paletteSet = new Set(palette.map(p=>p.color));
+        for(let r=0;r<pixelRows;r++)
+          for(let c=0;c<pixelCols;c++){
+            if(paintedData[r][c] && !paletteSet.has(paintedData[r][c]))
+              paintedData[r][c] = null;                                       // Xóa màu không hợp lệ
+          }
+      }
+    }catch(e){}
+  }
+
+  resizeCanvas();                                                             // Cập nhật kích thước canvas
+  render();                                                                   // Render lần đầu
+  saveState();                                                                // Lưu snapshot sau khi load xong
+}
+
+
+/* STORAGE key */
+function storageKey(index, cols){
+  return `pixeltool_v2_sample${index}_cols${cols}`;
+}
+
+// lưu trang thái tô
+function saveState(){
+  try{
+    const key = storageKey(currentSampleIndex, pixelCols);
+    const payload = { paintedData, pixelCols, pixelRows, palette, timestamp: Date.now() };
+    localStorage.setItem(key, JSON.stringify(payload));
+  }catch(e){ console.warn('save failed', e); }
+}
+
+/* remap originalPixelData colors to nearest palette color (hex) */
+function remapOriginalToPalette(){
+  if(!palette || palette.length===0) return;                         // Nếu chưa có palette thì bỏ qua
+
+  const paletteRGB = palette.map(p=> ({                               
+    hex:p.color, rgb:hexToRgb(p.color)                               // Chuyển palette từ hex → rgb (tính khoảng cách màu)
+  }));
+
+  for(let r=0;r<pixelRows;r++){                                      // Duyệt qua từng dòng pixel
+    for(let c=0;c<pixelCols;c++){                                    // Duyệt qua từng cột pixel
+      const orig = originalPixelData[r][c];                          // Lấy màu gốc của ô hiện tại
+
+      if(orig === BACKGROUND_LOCK_COLOR) continue;                   // Nếu là background đã khóa → không đổi
+
+      const origRGB = hexToRgb(orig);                                // Chuyển hex → RGB để đo khoảng cách
+
+      // Tìm màu trong palette gần nhất
+      let best = paletteRGB[0];                                      // Giả sử màu đầu là gần nhất
+      let bestD = colorDist(origRGB, paletteRGB[0].rgb);             // Tính khoảng cách màu đầu tiên
+
+      for(let i=1;i<paletteRGB.length;i++){                          // So từng màu trong palette
+        const d = colorDist(origRGB, paletteRGB[i].rgb);             // Tính khoảng cách
+        if(d < bestD){                                               // Nếu gần hơn
+          bestD = d;                                                 // Cập nhật khoảng cách
+          best = paletteRGB[i];                                      // Cập nhật màu tốt nhất
+        }
+      }
+
+      originalPixelData[r][c] = best.hex;                            // Ghi đè lên bằng màu palette gần nhất
+    }
+  }
+}
+
+
+//Tính lại số lượng mỗi màu + sắp xếp palette
+/* recompute counts & sort palette by freq + center */
+function recomputePaletteCountsAndSort(){
+  const map = new Map();                                              // Lưu số lượng mỗi màu xuất hiện
+  const posMap = new Map();                                           // Lưu vị trí từng màu (tính gần-center)
+
+  // Quét toàn bộ ảnh để đếm màu
+  for(let r=0;r<pixelRows;r++)
+    for(let c=0;c<pixelCols;c++){
+      const col = originalPixelData[r][c];                           // Màu tại pixel
+
+      map.set(col, (map.get(col)||0)+1);                             // Đếm số lần xuất hiện
+
+      if(!posMap.has(col)) posMap.set(col, []);                      // Lưu vị trí để tính trung tâm
+      posMap.get(col).push([r,c]);
+    }
+
+  const arr = [];
+
+  // Tạo array palette với metadata
+  for(const p of palette){
+    const col = p.color;                                             // Mã màu hex
+    const count = map.get(col) || 0;                                 // Số pixel màu này
+
+    const positions = posMap.get(col) || [];                         // Danh sách pixel
+    let total = 0;
+
+    // Tính khoảng cách trung bình của màu tới tâm ảnh
+    for(const pos of positions){
+      total += Math.sqrt(
+        (pos[0]-pixelRows/2)**2 + (pos[1]-pixelCols/2)**2           // Distance formula
+      );
+    }
+
+    const avg = positions.length ? total/positions.length : 999;     // Không có thì đặt 999 để đẩy xuống cuối
+
+    arr.push({color:col, count, avgCenterDist:avg});                 // Push object đầy đủ
+  }
+
+  // Sắp xếp palette:
+  arr.sort((a,b)=>{
+    if(b.count !== a.count) return b.count - a.count;                // 1️⃣ Ưu tiên màu nhiều nhất
+    return a.avgCenterDist - b.avgCenterDist;                        // 2️⃣ Gần tâm hơn thì đứng trước
+  });
+
+  // Tạo palette mới với index
+  palette = arr.map((p,i)=>({color:p.color,count:p.count,index:i+1,avgCenterDist:p.avgCenterDist}));
+
+  // Map hex → index để render số trên grid
+  colorIndexMap = {};
+  palette.forEach(p=> colorIndexMap[p.color]=p.index);
+
+  renderPaletteUI();                                                 // Render lại giao diện palette
+}
+
+/* K-means clustering over colorItems (objects with rgb & count) */
+function kmeansCluster(colorItems, K){
+    
+  // Nếu số màu nhỏ hơn K → không cần gom, mỗi màu là 1 cluster
+  if(K >= colorItems.length){
+    return colorItems.map(ci=>({centroid:ci.rgb.slice(), items:[ci], // normalize shape to clusters array of objects with items property
+      itemsArray: [ci], itemsList: [ci]}));
+  }
+  // initialize centroids by picking top-K frequent colors
+const sorted = colorItems.slice().sort((a,b)=>b.count - a.count); // sao chép mảng colorItems rồi sắp xếp giảm dần theo thuộc tính count (màu xuất hiện nhiều trước)
+let centroids = sorted.slice(0,K).map(s => s.rgb.slice()); // lấy K màu nhiều nhất làm centroid ban đầu, lưu vector RGB (slice() để clone mảng)
+let clusters = []; // biến sẽ chứa các cluster tạm trong vòng lặp
+for(let iter=0; iter<KMEANS_ITERS; iter++){ // lặp tối đa KMEANS_ITERS lần (giới hạn số vòng của thuật toán)
+  // assign
+  clusters = Array.from({length:centroids.length}, ()=>({items:[], sum:[0,0,0], cnt:0})); // khởi tạo mảng cluster rỗng tương ứng mỗi centroid: items, sum có trọng số, cnt là tổng trọng số
+  for(const ci of colorItems){ // duyệt từng colorItem (màu với rgb và count)
+    let best = 0, bestD = colorDistSq(ci.rgb, centroids[0]); // giả sử centroid đầu tiên là tốt nhất, tính khoảng cách bình phương ban đầu
+    for(let j=1;j<centroids.length;j++){ // kiểm tra các centroid khác để tìm centroid gần nhất
+      const d = colorDistSq(ci.rgb, centroids[j]); // khoảng cách bình phương giữa màu và centroid j
+      if(d < bestD){ bestD = d; best = j; } // nếu tìm có khoảng cách nhỏ hơn thì cập nhật best và bestD
+    }
+    clusters[best].items.push(ci); // thêm colorItem vào cluster gần nhất
+    clusters[best].sum[0] += ci.rgb[0]*ci.count; // cộng vào tổng R trọng số (rgb * count)
+    clusters[best].sum[1] += ci.rgb[1]*ci.count; // cộng vào tổng G trọng số
+    clusters[best].sum[2] += ci.rgb[2]*ci.count; // cộng vào tổng B trọng số
+    clusters[best].cnt += ci.count; // cộng tổng trọng số (count) của cluster
+  }
+  // recompute centroids
+  let moved = false; // flag xem centroid có di chuyển không
+  for(let j=0;j<centroids.length;j++){ // duyệt từng cluster để cập nhật centroid
+    const cl = clusters[j]; // cluster hiện tại
+    if(cl.cnt===0) continue; // nếu cluster không có phần tử (cnt=0) thì bỏ qua
+    const nr = Math.round(cl.sum[0]/cl.cnt), ng = Math.round(cl.sum[1]/cl.cnt), nb = Math.round(cl.sum[2]/cl.cnt); // centroid mới là trung bình có trọng số (làm tròn)
+    const newC = [nr,ng,nb]; // vector centroid mới
+    if(colorDistSq(newC, centroids[j]) > 1){ moved = true; centroids[j] = newC; } // nếu centroid thay đổi (ngưỡng nhỏ 1) thì cập nhật và đánh dấu moved
+  }
+  if(!moved) break; // nếu không có centroid nào di chuyển -> hội tụ -> dừng lặp
+}
+// merge centroids closer than threshold
+const merged = mergeCloseClusters(clusters, MERGE_DISTANCE_THRESHOLD); // sau khi K-means, gom các cluster có centroid quá gần nhau bằng hàm mergeCloseClusters
+// return clusters in desired shape: items list
+const out = merged.map(m=>({items:m.items})); // chuẩn hoá kết quả thành mảng các object { items: [...] }
+return out; // trả về danh sách cluster
+
+}
+
+/* Merge clusters whose centroids within threshold (based on centroid distances) */
+function mergeCloseClusters(clusters, thr){ // nhận vào clusters (từ kmeans) và ngưỡng khoảng cách thr để gộp
+  // compute centroid of each cluster
+  const centroids = clusters.map(cl=>{ // tính centroid thực của mỗi cluster, có trọng số bằng count
+    if(cl.items.length===0) return [0,0,0]; // nếu cluster rỗng trả về [0,0,0] tạm
+    let sr=0,sg=0,sb=0, scnt=0; // biến tích lũy
+    for(const it of cl.items){ sr += it.rgb[0]*it.count; sg += it.rgb[1]*it.count; sb += it.rgb[2]*it.count; scnt += it.count; } // cộng rgb * count và tổng count
+    return scnt? [Math.round(sr/scnt), Math.round(sg/scnt), Math.round(sb/scnt)] : [0,0,0]; // centroid trung bình trọng số hoặc [0,0,0]
+  });
+  const used = Array(clusters.length).fill(false); // mảng đánh dấu cluster đã được gộp
+  const merged = []; // mảng chứa các nhóm đã gộp
+  for(let i=0;i<clusters.length;i++){ // duyệt từng cluster theo thứ tự
+    if(used[i]) continue; // nếu đã gộp thì bỏ qua
+    const groupItems = clusters[i].items.slice(); // bắt đầu nhóm mới bằng items của cluster i (slice để clone)
+    used[i]=true; // đánh dấu đã dùng cluster i
+    for(let j=i+1;j<clusters.length;j++){ // duyệt các cluster phía sau để tìm những cái gần
+      if(used[j]) continue; // nếu cluster j đã gộp thì bỏ qua
+      const d = colorDist(centroids[i], centroids[j]); // khoảng cách Euclid giữa hai centroid
+      if(d <= thr){ // nếu khoảng cách <= ngưỡng -> gộp
+        groupItems.push(...clusters[j].items); // nối items của cluster j vào nhóm i
+        used[j]=true; // đánh dấu cluster j đã gộp
+      }
+    }
+    merged.push({items: groupItems}); // thêm nhóm gộp vào kết quả
+  }
+  return merged; // trả về mảng các nhóm đã gộp, mỗi object có .items
+}
+
+/* detect and lock background by flood from edges (grid space) */
+function detectAndLockBackground(){ // xác định vùng nền bắt đầu từ mép lưới và "khóa" nó (đổi thành BACKGROUND_LOCK_COLOR)
+  const visited = Array.from({length:pixelRows}, ()=>Array(pixelCols).fill(false)); // ma trận đánh dấu đã duyệt
+  const toLock = Array.from({length:pixelRows}, ()=>Array(pixelCols).fill(false)); // ma trận đánh dấu cần khóa (background)
+  function flood(r,c,color){ // flood-fill dùng stack (DFS) trong không gian lưới pixel (originalPixelData)
+    const stack = [[r,c]]; // stack khởi tạo với điểm bắt đầu
+    while(stack.length){
+      const [rr,cc] = stack.pop(); // lấy điểm hiện tại
+      if(rr<0||cc<0||rr>=pixelRows||cc>=pixelCols) continue; // nếu ra ngoài lưới bỏ qua
+      if(visited[rr][cc]) continue; // nếu đã thăm bỏ qua
+      if(originalPixelData[rr][cc] !== color) continue; // chỉ tiếp tục nếu ô có cùng màu như màu bắt đầu
+      visited[rr][cc] = true; // đánh dấu đã thăm
+      toLock[rr][cc] = true; // đánh dấu ô này sẽ bị khóa
+      stack.push([rr+1,cc],[rr-1,cc],[rr,cc+1],[rr,cc-1]); // đẩy 4 ô kề vào stack để tiếp tục
+    }
+  }
+  for(let c=0;c<pixelCols;c++){ // flood từ hàng trên và hàng dưới cho mọi cột
+    flood(0,c, originalPixelData[0][c]); // bắt đầu từ ô (0,c)
+    flood(pixelRows-1,c, originalPixelData[pixelRows-1][c]); // bắt đầu từ ô (pixelRows-1,c)
+  }
+  for(let r=0;r<pixelRows;r++){ // flood từ cột trái và cột phải cho mọi hàng
+    flood(r,0, originalPixelData[r][0]); // bắt đầu từ ô (r,0)
+    flood(r,pixelCols-1, originalPixelData[r][pixelCols-1]); // bắt đầu từ ô (r,pixelCols-1)
+  }
+  for(let r=0;r<pixelRows;r++) for(let c=0;c<pixelCols;c++){ // sau khi flood hoàn tất, chuyển các ô cần khóa thành BACKGROUND_LOCK_COLOR
+    if(toLock[r][c]) originalPixelData[r][c] = BACKGROUND_LOCK_COLOR; // đổi màu ô nền sang giá trị khóa (ví dụ '#000000')
+  }
+}
+
+/* RENDER palette UI with progress */
+function renderPaletteUI(){
+  paletteList.innerHTML=''; // xóa nội dung cũ của danh sách palette (reset DOM)
+  const totalTarget = pixelRows*pixelCols; // tổng số ô trên lưới (dùng để tính tỉ lệ hoàn thành nếu cần)
+  const paletteSet = new Set(palette.map(p=>p.color)); // tập các màu trong palette để tra cứu nhanh
+
+  // compute remaining counts per palette color
+  const remaining = {}; // object lưu số ô còn phải tô cho mỗi màu palette
+  for(const p of palette) remaining[p.color]=0; // khởi tạo các key bằng màu của palette, giá trị ban đầu 0
+  let totalRequired = 0, totalPainted = 0; // tổng ô cần tô (không tính background) và tổng ô đã tô hợp lệ
+  for(let r=0;r<pixelRows;r++) for(let c=0;c<pixelCols;c++){ // duyệt hết lưới pixel
+    const orig = originalPixelData[r][c]; // màu gốc (đã remap) của ô [r,c]
+    if(orig === BACKGROUND_LOCK_COLOR) continue; // bỏ qua ô nền đã bị khóa
+    totalRequired++; // đếm ô cần tô
+    if(paintedData[r][c] && paletteSet.has(paintedData[r][c])) totalPainted++; // nếu ô đã tô và màu tô nằm trong palette thì tính là đã tô hợp lệ
+    if(remaining[orig] !== undefined && (!paintedData[r][c])) remaining[orig] += 1; // nếu ô chưa tô thì tăng số "remain" cho màu gốc tương ứng
+  }
+  palette.forEach(p=>{ // cho mỗi mục palette tạo DOM badge trình bày
+    const row = document.createElement('div'); row.className='pal-badge'; // wrapper thẻ cho 1 mục palette
+    const sw = document.createElement('div'); sw.className='sw'; sw.style.background = p.color; // sw = color swatch, đặt background là màu
+    const meta = document.createElement('div'); meta.className='pal-meta'; // meta chứa thông tin chữ
+    const idx = document.createElement('div'); idx.className='idx'; idx.innerText = `${p.index}. ${p.count} px`; // hiển thị chỉ số và số pixel của màu trong palette
+    const rem = document.createElement('div'); rem.className='muted small'; rem.innerText = `Remain: ${remaining[p.color] || 0}`; // hiển thị số ô còn lại cần tô cho màu này
+    meta.appendChild(idx); meta.appendChild(rem); // ghép các phần meta lại
+    row.appendChild(sw); row.appendChild(meta); // ghép swatch và meta vào row
+
+    row.addEventListener('click', ()=>{ // gán sự kiện click cho badge - chọn màu khi người dùng click
+      // select color (disallow selecting background)
+      if(p.color === BACKGROUND_LOCK_COLOR) return; // nếu là màu nền khóa thì không cho chọn
+      selectPaletteColor(p.color); // gọi hàm chọn màu
+      // highlight
+      Array.from(paletteList.querySelectorAll('.pal-badge')).forEach(b=>b.style.boxShadow=''); // xóa highlight cũ của tất cả badge
+      row.style.boxShadow = '0 6px 18px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.05)'; // thêm shadow để highlight badge vừa chọn
+    });
+
+    paletteList.appendChild(row); // thêm badge vào DOM danh sách palette
+  });
+
+  selectedPreview.style.background = selectedColor || '#777'; // cập nhật ô preview màu đã chọn (mặc định #777 nếu chưa chọn)
+  const pct = totalRequired? Math.round((totalPainted/totalRequired)*100) : 100; // tính % hoàn thành (nếu không có ô cần tô thì coi 100%)
+  progressSummary.innerText = `${totalPainted}/${totalRequired} (${pct}%)`; // hiển thị tiến trình dạng "đã tô/tổng (pct%)"
+
+  // if completed, show visual cue
+  if(pct===100){
+    progressSummary.innerHTML = `<span class="completed-badge">Completed</span>`; // nếu hoàn tất, đổi nội dung sang badge "Completed"
+  }
+}
+
+/* SELECT palette color */
+function selectPaletteColor(hex){
+  if(hex === BACKGROUND_LOCK_COLOR) return; // không cho chọn màu nền khóa
+  selectedColor = hex; // lưu màu đã chọn vào state
+  selectedPreview.style.background = selectedColor; // cập nhật preview màu chọn
+  allowPaintMask = []; // tái khởi tạo mask cho phép tô (mỗi ô true/false)
+  for(let r=0;r<pixelRows;r++){ // với mỗi hàng
+    allowPaintMask[r] = []; // khởi tạo mảng hàng
+    for(let c=0;c<pixelCols;c++){ // với mỗi cột
+      allowPaintMask[r][c] = (originalPixelData[r][c] === hex); // cho phép tô nếu màu gốc của ô bằng màu đã chọn
+    }
+  }
+  render(); // vẽ lại canvas (để hiển thị mask/preview thay đổi)
+}
+
+//vẽ toàn bộ pixel lên grid,Nếu chưa load ảnh pixel nào → hiện màn đen + chữ hướng dẫn.
+function render(){
+  if(!originalPixelData || !originalPixelData.length){
+    ctx.fillStyle='#0b0b0b'; ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    ctx.fillStyle='#bbb'; ctx.font='16px Inter, Arial'; ctx.fillText('Bấm một thumbnail để bắt đầu', 18, 32);
+    return;
+  }
+  //Tính toán kích thước từng ô
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  const baseSizeW = cw / pixelCols, baseSizeH = ch / pixelRows;
+  const baseSize = Math.min(baseSizeW, baseSizeH);
+  const cellSize = baseSize * zoom;
+  const gridW = cellSize * pixelCols, gridH = cellSize * pixelRows;
+  const startX = Math.round((cw - gridW)/2 + panX);
+  const startY = Math.round((ch - gridH)/2 + panY);
+
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,cw,ch);
+  ctx.imageSmoothingEnabled = false;
+
+  for(let r=0;r<pixelRows;r++){
+    for(let c=0;c<pixelCols;c++){
+      // Xác định vị trí pixel để vẽ
+      const x = Math.round(startX + c*cellSize);
+      const y = Math.round(startY + r*cellSize);
+      const painted = paintedData[r][c];
+      //Nếu pixel đúng màu đang chọn → highlight bằng xám
+
+//Pixel khác màu → trắng (không cho tô).
+      if(painted){
+        ctx.fillStyle = painted; ctx.fillRect(x,y, Math.ceil(cellSize), Math.ceil(cellSize));
+      } else {
+        const orig = originalPixelData[r][c];
+        if(orig === BACKGROUND_LOCK_COLOR){
+          ctx.fillStyle = BACKGROUND_LOCK_COLOR; ctx.fillRect(x,y, Math.ceil(cellSize), Math.ceil(cellSize));
+        } else if(selectedColor && showMask){
+          if(orig === selectedColor){
+            ctx.fillStyle = '#bfc0c4'; ctx.fillRect(x,y, Math.ceil(cellSize), Math.ceil(cellSize)); // gray allowed
+          } else {
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(x,y, Math.ceil(cellSize), Math.ceil(cellSize)); // locked / not allowed
+          }
+        } else {
+          ctx.fillStyle = orig; ctx.fillRect(x,y, Math.ceil(cellSize), Math.ceil(cellSize));
+        }
+      }
+      if(zoom > 1.4){
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth=1;
+        ctx.strokeRect(x+0.5,y+0.5,Math.ceil(cellSize)-1,Math.ceil(cellSize)-1);
+      }
+      const idx = colorIndexMap[ originalPixelData[r][c] ] || 0;
+      if(idx && zoom > 1.8 && originalPixelData[r][c] !== BACKGROUND_LOCK_COLOR){
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; const fontSize = Math.max(8, Math.round(cellSize*0.34));
+        ctx.font = `${fontSize}px Inter, Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(idx.toString(), x + cellSize/2, y + cellSize/2);
+      }
+    }
+  }
+  const zb = document.getElementById('zoomBar');
+  if(zb){ const pw = zb.parentElement ? zb.parentElement.clientWidth : 180; const w = clamp((zoom/24)*pw, 8, pw); zb.style.width = `${w}px`; }
+  renderPaletteUI();
+}
+
+//chuyển chuột tới ô pixel
+function screenToCell(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const sx = clientX - rect.left, sy = clientY - rect.top;
+  const baseSize = Math.min(canvas.clientWidth / pixelCols, canvas.clientHeight / pixelRows);
+  const cellSize = baseSize * zoom;
+  const gridW = cellSize * pixelCols, gridH = cellSize * pixelRows;
+  const startX = (canvas.clientWidth - gridW)/2 + panX;
+  const startY = (canvas.clientHeight - gridH)/2 + panY;
+  const col = Math.floor((sx - startX) / cellSize);
+  const row = Math.floor((sy - startY) / cellSize);
+  return {row, col, startX, startY, cellSize};
+}
+
+//Bấm chuột để bắt đầu tô
+canvas.addEventListener('pointerdown', (e)=>{
+  if(!originalPixelData || !originalPixelData.length) return;
+  const {row,col} = screenToCell(e.clientX, e.clientY);
+//Nếu bấm ra ngoài vùng pixel → kích hoạt chế độ kéo (pan)  
+  if(row<0||col<0||row>=pixelRows||col>=pixelCols){
+    isPanning=true; panStart = {x:e.clientX, y:e.clientY, panX0:panX, panY0:panY}; return;
+  }
+  const orig = originalPixelData[row][col];
+  const canPaint = (orig === selectedColor && orig !== BACKGROUND_LOCK_COLOR);
+  if(canPaint){
+    painting = true; pushUndo(); handlePaintAt(row,col);
+  } else {
+    isPanning = true; panStart = {x:e.clientX, y:e.clientY, panX0:panX, panY0:panY};
+  }
+});
+
+window.addEventListener('pointermove', (e)=>{
+  if(isPanning && panStart){
+    panX = panStart.panX0 + (e.clientX - panStart.x); panY = panStart.panY0 + (e.clientY - panStart.y);
+    render(); return;
+  }
+  if(painting){
+    const {row,col} = screenToCell(e.clientX, e.clientY);
+    if(row>=0 && col>=0 && row<pixelRows && col<pixelCols) handlePaintAt(row,col);
+  }
+});
+
+window.addEventListener('pointerup', (e)=>{
+  if(painting){ painting=false; spawnParticlesEnd(); saveState(); }
+  if(isPanning){ isPanning=false; panStart=null; }
+});
+
+/* painting ops */
+function pushUndo(){
+  pixelUndo.push(deepCopy2D(paintedData));
+  if(pixelUndo.length>UNDO_LIMIT) pixelUndo.shift();
+  pixelRedo = [];
+}
+function undo(){ if(pixelUndo.length===0) return; pixelRedo.push(deepCopy2D(paintedData)); paintedData = pixelUndo.pop(); render(); saveState(); }
+function redo(){ if(pixelRedo.length===0) return; pixelUndo.push(deepCopy2D(paintedData)); paintedData = pixelRedo.pop(); render(); saveState(); }
+
+function handlePaintAt(row,col){
+  if(row<0||col<0||row>=pixelRows||col>=pixelCols) return;
+  const orig = originalPixelData[row][col];
+  if(orig !== selectedColor) return;
+  if(paintedData[row][col] === selectedColor) return; // already painted
+  paintedData[row][col] = selectedColor;
+  render();
+  spawnParticleAtCell(row,col, selectedColor);
+}
+
+//Tô lan
+function floodFill(r,c, targetColor){
+  if(r<0||c<0||r>=pixelRows||c>=pixelCols) return;
+  if(originalPixelData[r][c] !== selectedColor) return;
+  pushUndo();
+  const stack = [[r,c]];
+  while(stack.length){
+    const [rr,cc] = stack.pop();
+    if(rr<0||cc<0||rr>=pixelRows||cc>=pixelCols) continue;
+    if(originalPixelData[rr][cc] !== selectedColor) continue;
+    if(paintedData[rr][cc] === targetColor) continue;
+    paintedData[rr][cc] = targetColor;
+    stack.push([rr+1,cc],[rr-1,cc],[rr,cc+1],[rr,cc-1]);
+  }
+  render();
+  saveState();
+}
+
+//animation
+let particleThrottleTimer = 0;
+function spawnParticleAtCell(row,col,color){
+  if(Date.now() - particleThrottleTimer < 12) return; // throttle
+  particleThrottleTimer = Date.now();
+  const baseSize = Math.min(canvas.clientWidth / pixelCols, canvas.clientHeight / pixelRows);
+  const cellSize = baseSize * zoom;
+  const gridW = cellSize * pixelCols, gridH = cellSize * pixelRows;
+  const startX = (canvas.clientWidth - gridW)/2 + panX;
+  const startY = (canvas.clientHeight - gridH)/2 + panY;
+  const x = Math.round(startX + col*cellSize + cellSize/2);
+  const y = Math.round(startY + row*cellSize + cellSize/2);
+  const count = Math.floor(Math.random()*(PARTICLE_MAX-PARTICLE_MIN+1))+PARTICLE_MIN;
+  for(let i=0;i<count;i++) createParticle(x,y,color);
+}
+function createParticle(x,y,color){
+  const el = document.createElement('div');
+  el.style.position='absolute';
+  el.style.left = `${x}px`; el.style.top = `${y}px`;
+  const size = Math.max(4, Math.round(Math.random()*7));
+  el.style.width = el.style.height = `${size}px`;
+  el.style.borderRadius='50%';
+  el.style.background = color;
+  el.style.pointerEvents='none';
+  particleLayer.appendChild(el);
+  const angle = Math.random()*Math.PI*2;
+  const dist = 8 + Math.random()*20;
+  const tx = x + Math.cos(angle)*dist;
+  const ty = y + Math.sin(angle)*dist;
+  gsap.to(el, {duration: PARTICLE_TIME, x: tx - x, y: ty - y, opacity:0, scale:0.6, ease:'power1.out', onComplete: ()=>{ try{ particleLayer.removeChild(el);}catch(e){} }});
+}
+function spawnParticlesEnd(){ /* nothing extra */ }
+
+// /Tạo canvas nhỏ: 1 pixel = 1 ô thật
+
+// Vẽ pixel
+
+// Scale lên canvas lớn
+
+// Xuất file PNG
+function exportPNG(){
+  if(!originalPixelData || !originalPixelData.length) return;
+  // check completion (all non-background cells painted)
+  let remaining = 0;
+  for(let r=0;r<pixelRows;r++) for(let c=0;c<pixelCols;c++){
+    if(originalPixelData[r][c] === BACKGROUND_LOCK_COLOR) continue;
+    if(!paintedData[r][c]) remaining++;
+  }
+  if(remaining>0){
+    alert(`Vẫn còn ${remaining} ô chưa tô. Bạn phải tô hết trước khi xuất ảnh.`); return;
+  }
+  const small = document.createElement('canvas'); small.width = pixelCols; small.height = pixelRows;
+  const sctx = small.getContext('2d');
+  for(let r=0;r<pixelRows;r++) for(let c=0;c<pixelCols;c++){
+    const color = paintedData[r][c] || originalPixelData[r][c];
+    sctx.fillStyle = color;
+    sctx.fillRect(c,r,1,1);
+  }
+  const scale = Math.min(1024/Math.max(pixelCols,pixelRows), 16);
+  const big = document.createElement('canvas'); big.width = Math.max(128, pixelCols*scale); big.height = Math.max(128, pixelRows*scale);
+  const bctx = big.getContext('2d'); bctx.imageSmoothingEnabled = false;
+  bctx.drawImage(small,0,0, big.width, big.height);
+  const link = document.createElement('a'); link.download = `sample${currentSampleIndex}_paint.png`; link.href = big.toDataURL('image/png'); link.click();
+}
+
+/* Reset image paintedData */
+function resetImage(){
+  paintedData = Array.from({length:pixelRows}, ()=>Array(pixelCols).fill(null));
+  pixelUndo=[]; pixelRedo=[];
+  saveState();
+  render();
+}
+
+//zoom giữ đúng vị trí đang trỏ chuột
+canvas.addEventListener('wheel', (e)=>{
+  if(!originalPixelData || !originalPixelData.length) return;
+  e.preventDefault();
+  const delta = -e.deltaY; const factor = delta>0?1.12:0.88;
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
+  const baseSize = Math.min(canvas.clientWidth / pixelCols, canvas.clientHeight / pixelRows);
+  const pixelSizeBefore = baseSize * zoom;
+  const startXBefore = (canvas.clientWidth - pixelSizeBefore*pixelCols)/2 + panX;
+  const startYBefore = (canvas.clientHeight - pixelSizeBefore*pixelRows)/2 + panY;
+  const relX = (mouseX - startXBefore)/pixelSizeBefore; const relY = (mouseY - startYBefore)/pixelSizeBefore;
+  zoom = clamp(zoom * factor, 0.5, 24);
+  const pixelSizeAfter = baseSize * zoom;
+  const gridWAfter = pixelSizeAfter * pixelCols;
+  const gridHAfter = pixelSizeAfter * pixelRows;
+  panX = mouseX - (relX * pixelSizeAfter) - (canvas.clientWidth - gridWAfter)/2;
+  panY = mouseY - (relY * pixelSizeAfter) - (canvas.clientHeight - gridHAfter)/2;
+  render();
+},{passive:false});
+
+// nút
+document.getElementById('zoomIn').addEventListener('click', ()=>{ zoom = clamp(zoom * 1.2, 0.5, 24); render(); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ zoom = clamp(zoom / 1.2, 0.5, 24); render(); });
+document.getElementById('downloadBtn').addEventListener('click', exportPNG);
+document.getElementById('resetImage').addEventListener('click', ()=>{ resetImage(); });
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('redoBtn').addEventListener('click', redo);
+document.getElementById('backGallery').addEventListener('click', ()=>{ window.scrollTo({top:0,behavior:'smooth'}); });
+document.getElementById('fillTool').addEventListener('click', ()=>{ paintingMode='fill'; alert('Fill: click onto a cell of allowed color to fill contiguous allowed area.'); });
+document.getElementById('toggleMask').addEventListener('click', ()=>{ showMask = !showMask; render(); });
+document.getElementById('restartBtn').addEventListener('click', ()=>{ resetImage(); buildPaletteFromOriginal(); render(); });
+
+gridInput.addEventListener('change', (e)=>{
+  const val = parseInt(e.target.value);
+  if(isNaN(val) || val<8 || val>64) return;
+  pixelCols = val;
+  loadSample(currentSampleIndex);
+});
+
+
+canvas.addEventListener('click', (e)=>{
+  if(paintingMode === 'fill' && selectedColor){
+    const {row,col} = screenToCell(e.clientX,e.clientY);
+    if(row<0||col<0||row>=pixelRows||col>=pixelCols) return;
+    if(originalPixelData[row][col] === selectedColor){
+      floodFill(row,col, selectedColor);
+    }
+    paintingMode='paint';
+  }
+});
+//ctrl z=undo;ctrl y =redo
+//Space → đổi con trỏ chuột thành dạng “bàn tay kéo”
+window.addEventListener('keydown', (e)=>{
+  if(e.code==='Space'){ canvas.style.cursor='grab'; }
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='z'){ undo(); e.preventDefault(); }
+  if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ redo(); e.preventDefault(); }
+});
+window.addEventListener('keyup', (e)=>{ if(e.code==='Space'){ canvas.style.cursor='crosshair'; } });
+
+
+function buildPaletteFromOriginal(){
+  
+  const map = new Map();
+  for(let r=0;r<pixelRows;r++) for(let c=0;c<pixelCols;c++){
+    const col = originalPixelData[r][c] || '#ffffff';
+    if(col === BACKGROUND_LOCK_COLOR) continue;
+    map.set(col, (map.get(col)||0)+1);
+  }
+  const arr = Array.from(map.entries()).sort((a,b)=>b[1]-a[1]);
+  const maxP = maxPaletteForGrid(pixelCols);
+  palette = arr.slice(0,maxP).map((it,i)=>({color:it[0],count:it[1],index:i+1}));
+  colorIndexMap = {};
+  palette.forEach(p=> colorIndexMap[p.color]=p.index);
+  renderPaletteUI();
+}
+
+//Save trước khi rời trang
+window.addEventListener('beforeunload', ()=> saveState());
+
+//luôn tải sample 1
+setTimeout(()=> loadSample(1), 250);
+
+
+window.pixelTool = { loadSample, exportPNG, resetImage, getState: ()=>({pixelCols,pixelRows,originalPixelData,paintedData,palette}) };
+</script>
+</body>
+</html>

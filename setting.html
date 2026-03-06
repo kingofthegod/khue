@@ -1,0 +1,616 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Windows Settings — Clone</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --bg:#f5f5f5; --text:#111; --card:#fff; --accent:#0078d4; --muted:#666;
+}
+.dark{
+  --bg:#0b0f14; --text:#e6eaf2; --card:#0f1720; --accent:#3aa0ff; --muted:#9aa8b6;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:"Segoe UI",system-ui,Arial; background:var(--bg); color:var(--text);
+  height:100vh; display:flex; overflow:hidden;
+}
+
+/* SIDEBAR (mica-like) */
+#sidebar{
+  width:260px; padding:22px 14px; background:linear-gradient(rgba(255,255,255,0.55), rgba(255,255,255,0.45));
+  backdrop-filter:blur(18px) saturate(120%); border-right:1px solid rgba(0,0,0,0.06);
+}
+#sidebar h2{margin:0 0 12px 6px;font-size:20px}
+.sidebar-section{margin-top:8px}
+.sidebar-item{
+  display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:8px; cursor:pointer;
+  color:var(--text); transition:all .12s;
+}
+.sidebar-item:hover{background:rgba(0,0,0,0.04)}
+.sidebar-item.active{background:rgba(0,120,215,0.14); font-weight:600}
+
+/* MAIN */
+#main{flex:1; overflow:auto; padding:28px 36px}
+.header{display:flex; align-items:center; justify-content:space-between; gap:16px}
+.h-title{font-size:28px; font-weight:700; margin-bottom:14px}
+.search-box{padding:8px 12px; border-radius:8px; border:none; width:360px; background:var(--card); box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.controls{display:flex; gap:10px; align-items:center}
+
+/* grid like home */
+.grid {display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px}
+.tile{background:var(--card); padding:14px; border-radius:14px; box-shadow:0 6px 18px rgba(2,6,23,0.06); cursor:pointer; transition:transform .14s, box-shadow .14s}
+.tile:hover{transform:translateY(-6px); box-shadow:0 12px 30px rgba(2,6,23,0.12)}
+.tile i{font-size:28px; color:var(--accent)}
+.tile-title{font-weight:700; margin-top:10px}
+.tile-desc{opacity:.75; font-size:13px; margin-top:6px}
+
+/* subpage common */
+.subpage{display:none; animation:fadeIn .28s ease both}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+.back{color:var(--accent); cursor:pointer; margin-bottom:14px; display:inline-block}
+.section{background:var(--card); padding:16px; border-radius:12px; box-shadow:0 6px 18px rgba(2,6,23,0.04); margin-bottom:18px}
+.section h3{margin:0 0 10px 0}
+
+/* small controls */
+.label{font-weight:600}
+.row{display:flex; gap:18px; align-items:center; margin-bottom:12px}
+.flex{display:flex; gap:12px; align-items:center}
+.muted{color:var(--muted)}
+.link{color:var(--accent); text-decoration:none; cursor:pointer}
+.range{width:100%}
+
+/* right help column */
+.container{display:grid; grid-template-columns:1fr 320px; gap:28px}
+.help{padding:12px 14px; border-radius:10px; background:linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01));}
+.small-list a{display:block; color:var(--accent); margin-bottom:8px}
+
+/* statusbar */
+.statusbar{height:42px; display:flex; align-items:center; justify-content:space-between; padding:6px 14px; font-size:13px; color:var(--muted)}
+
+/* form elements */
+.switch{position:relative;width:46px;height:26px;background:#cfcfcf;border-radius:999px;display:inline-block}
+.switch input{display:none}
+.switch .knob{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .18s}
+.switch.on{background:var(--accent)}
+.switch.on .knob{transform:translateX(20px)}
+.btn{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
+
+/* responsive */
+@media (max-width:980px){ .container{grid-template-columns:1fr} #sidebar{display:none} .search-box{width:100%} }
+
+</style>
+</head>
+<body>
+
+
+<div id="sidebar">
+  <h2>⚙️ Settings</h2>
+  <div class="sidebar-section">
+    <div class="sidebar-item active" data-page="home"><i class="fa-solid fa-house"></i> Home</div>
+    <div class="sidebar-item" data-page="system"><i class="fa-solid fa-desktop"></i> System</div>
+    <div class="sidebar-item" data-page="devices"><i class="fa-solid fa-keyboard"></i> Devices</div>
+    <div class="sidebar-item" data-page="network"><i class="fa-solid fa-globe"></i> Network & Internet</div>
+    <div class="sidebar-item" data-page="personalization"><i class="fa-solid fa-palette"></i> Personalization</div>
+    <div class="sidebar-item" data-page="apps"><i class="fa-solid fa-box"></i> Apps</div>
+    <div class="sidebar-item" data-page="accounts"><i class="fa-solid fa-user"></i> Accounts</div>
+    <div class="sidebar-item" data-page="time"><i class="fa-solid fa-clock"></i> Time & Language</div>
+    <div class="sidebar-item" data-page="gaming"><i class="fa-solid fa-gamepad"></i> Gaming</div>
+    <div class="sidebar-item" data-page="search"><i class="fa-solid fa-magnifying-glass"></i> Search</div>
+    <div class="sidebar-item" data-page="privacy"><i class="fa-solid fa-shield-halved"></i> Privacy</div>
+    <div class="sidebar-item" data-page="update"><i class="fa-solid fa-rotate-right"></i> Update & Security</div>
+  </div>
+</div>
+
+<div id="main">
+  <div class="header">
+    <div>
+      <div class="h-title">Windows Settings</div>
+      <input id="searchBox" class="search-box" placeholder="Find a setting..." />
+    </div>
+    <div class="controls">
+      <div id="themeToggle" class="btn">Dark</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="contentArea">
+
+      
+      <div id="page-home" class="subpage" style="display:block">
+        <div class="grid">
+          <div class="tile" data-page="system"><i class="fa-solid fa-desktop"></i><div class="tile-title">System</div><div class="tile-desc">Display, sound, notifications</div></div>
+          <div class="tile" data-page="devices"><i class="fa-solid fa-keyboard"></i><div class="tile-title">Devices</div><div class="tile-desc">Bluetooth, printers, mouse</div></div>
+          <div class="tile" data-page="network"><i class="fa-solid fa-globe"></i><div class="tile-title">Network & Internet</div><div class="tile-desc">Wi-Fi, VPN</div></div>
+          <div class="tile" data-page="personalization"><i class="fa-solid fa-palette"></i><div class="tile-title">Personalization</div><div class="tile-desc">Background, colors</div></div>
+          <div class="tile" data-page="apps"><i class="fa-solid fa-box"></i><div class="tile-title">Apps</div><div class="tile-desc">Installed apps, defaults</div></div>
+          <div class="tile" data-page="accounts"><i class="fa-solid fa-user"></i><div class="tile-title">Accounts</div><div class="tile-desc">Your info, sign-in</div></div>
+          <div class="tile" data-page="time"><i class="fa-solid fa-clock"></i><div class="tile-title">Time & Language</div><div class="tile-desc">Region, language</div></div>
+          <div class="tile" data-page="gaming"><i class="fa-solid fa-gamepad"></i><div class="tile-title">Gaming</div><div class="tile-desc">Game bar, captures</div></div>
+          <div class="tile" data-page="search"><i class="fa-solid fa-magnifying-glass"></i><div class="tile-title">Search</div><div class="tile-desc">Find my files</div></div>
+          <div class="tile" data-page="privacy"><i class="fa-solid fa-shield-halved"></i><div class="tile-title">Privacy</div><div class="tile-desc">Camera, microphone</div></div>
+          <div class="tile" data-page="update"><i class="fa-solid fa-rotate-right"></i><div class="tile-title">Update & Security</div><div class="tile-desc">Windows Update</div></div>
+        </div>
+      </div>
+
+      
+      <div id="page-system" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>System</h2>
+        <p class="muted">Display, sound, notifications, power</p>
+
+        <div class="section">
+          <h3>Display</h3>
+          <div class="row">
+            <div style="flex:1">
+              <div class="label">Brightness</div>
+              <input id="brightness" type="range" min="0" max="100" value="60" class="range">
+            </div>
+            <div style="width:220px">
+              <div class="label">Scale</div>
+              <select id="scale" style="padding:8px;border-radius:8px;border:1px solid #ddd;width:100%">
+                <option>100%</option><option selected>125%</option><option>150%</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:12px" class="muted">Night light: <span id="nightLightState">Off</span> — <a class="link" onclick="toggleNight()">Toggle</a></div>
+        </div>
+
+        <div class="section">
+          <h3>Windows HD Color</h3>
+          <div class="muted">Get a brighter and more vibrant picture for videos, games and apps that support HDR.</div>
+          <div style="margin-top:10px"><a class="link" onclick="showToast('Opening Windows HD Color settings (demo)')">Windows HD Color settings</a></div>
+        </div>
+
+        <div class="section">
+          <h3>Scale and layout</h3>
+          <div class="row">
+            <div style="flex:1">
+              <div class="label">Change the size of text, apps, and other items</div>
+              <select id="scale2" style="padding:8px;border-radius:8px;border:1px solid #ddd;width:220px;margin-top:8px">
+                <option>100% (Recommended)</option>
+                <option>125%</option>
+                <option>150%</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Sound</h3>
+          <div class="row">
+            <div style="flex:1">
+              <div class="label">Volume</div>
+              <input id="volume" type="range" min="0" max="100" value="50" class="range">
+            </div>
+            <div style="width:220px">
+              <div class="label">Output</div>
+              <select style="padding:8px;border-radius:8px;border:1px solid #ddd;width:100%">
+                <option>Speakers (Realtek)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Notifications</h3>
+          <div><label><input type="checkbox" id="notiAllow" checked> Allow notifications</label></div>
+          <div><label><input type="checkbox"> Show notification banners</label></div>
+          <div><label><input type="checkbox"> Play sound for notifications</label></div>
+          <div style="margin-top:10px"><a class="link" onclick="showToast('Manage notification settings')">Manage notification settings</a></div>
+        </div>
+
+        <div class="section">
+          <h3>Power & battery</h3>
+          <div class="row">
+            <div style="flex:1">
+              <div class="label">Battery saver</div>
+              <label class="switch" id="batterySwitch"><input type="checkbox"><span class="knob"></span></label>
+            </div>
+            <div style="width:200px">
+              <div class="label">Battery health</div>
+              <div class="muted">92% (Good)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Storage</h3>
+          <div class="muted">Total: 256 GB — Used: 124 GB — Free: 132 GB</div>
+          <div style="margin-top:10px"><a class="link" onclick="showToast('Open Storage Sense (demo)')">Storage settings</a></div>
+        </div>
+      </div>
+
+      
+      <div id="page-devices" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Devices</h2>
+        <p class="muted">Bluetooth, printers, mouse</p>
+
+        <div class="section">
+          <h3>Bluetooth & other devices</h3>
+          <div class="row">
+            <div class="label">Bluetooth</div>
+            <div>
+              <div id="btState" style="margin-bottom:8px" class="muted">On</div>
+              <button class="btn" onclick="showToast('Add Bluetooth device (demo)')">Add device</button>
+            </div>
+          </div>
+          <div style="margin-top:12px" class="muted">Paired devices: <br> • Phone — Connected<br> • Headset — Not connected</div>
+        </div>
+
+        <div class="section">
+          <h3>Printers & scanners</h3>
+          <div class="muted">No printers added.</div>
+          <div style="margin-top:10px"><button class="btn" onclick="showToast('Add printer (demo)')">Add a printer</button></div>
+        </div>
+
+        <div class="section">
+          <h3>Mouse</h3>
+          <div class="row"><div class="label">Primary button</div><select style="padding:8px;border-radius:8px;border:1px solid #ddd"><option>Left</option><option>Right</option></select></div>
+        </div>
+      </div>
+
+      
+      <div id="page-network" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Network & Internet</h2>
+        <p class="muted">Wi-Fi, airplane mode, VPN</p>
+
+        <div class="section">
+          <h3>Wi-Fi</h3>
+          <div class="row">
+            <div style="flex:1">
+              <div class="label">Available networks</div>
+              <div style="margin-top:10px">
+                <div style="padding:8px;border-radius:8px;background:linear-gradient(180deg,#fff,#fff);margin-bottom:8px">
+                  <div style="font-weight:600">HomeNetwork</div><div class="muted">Connected — Secured</div>
+                </div>
+                <div style="padding:8px;border-radius:8px;background:linear-gradient(180deg,#f9f9f9,#fff);margin-bottom:8px">
+                  <div style="font-weight:600">CafeWiFi</div><div class="muted">Not connected</div>
+                </div>
+              </div>
+            </div>
+            <div style="width:200px">
+              <div class="label">Airplane mode</div>
+              <label class="switch" id="airplane"><input type="checkbox"><span class="knob"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>VPN</h3>
+          <div class="muted">No VPN configured</div>
+          <div style="margin-top:10px"><button class="btn" onclick="showToast('Add VPN (demo)')">Add a VPN</button></div>
+        </div>
+      </div>
+
+      
+      <div id="page-personalization" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Personalization</h2>
+        <p class="muted">Background, colors, lock screen</p>
+
+        <div class="section">
+          <h3>Background</h3>
+          <div class="row">
+            <div style="flex:1">
+              <div class="muted">Choose your background</div>
+              <div style="display:flex;gap:12px;margin-top:12px">
+                <div style="width:120px;height:80px;border-radius:8px;background:url('https://picsum.photos/seed/1/320/200') center/cover"></div>
+                <div style="width:120px;height:80px;border-radius:8px;background:url('https://picsum.photos/seed/2/320/200') center/cover"></div>
+                <div style="width:120px;height:80px;border-radius:8px;background:url('https://picsum.photos/seed/3/320/200') center/cover"></div>
+              </div>
+            </div>
+            <div style="width:220px">
+              <div class="label">Choose your theme</div>
+              <select style="padding:8px;border-radius:8px;border:1px solid #ddd;width:100%;margin-top:8px">
+                <option>Windows (light)</option><option>Windows (dark)</option><option>Custom</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Colors</h3>
+          <div class="muted">Accent color</div>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <div style="width:28px;height:28px;border-radius:6px;background:#0078d4"></div>
+            <div style="width:28px;height:28px;border-radius:6px;background:#ff6b6b"></div>
+            <div style="width:28px;height:28px;border-radius:6px;background:#3aa0ff"></div>
+            <div style="width:28px;height:28px;border-radius:6px;background:#6aeb7b"></div>
+          </div>
+        </div>
+      </div>
+
+     
+      <div id="page-apps" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Apps</h2>
+        <p class="muted">Uninstall, defaults, optional features</p>
+
+        <div class="section">
+          <h3>Installed apps</h3>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;padding:10px;border-radius:8px;background:var(--card)">
+              <div><b>FunFusion</b><div class="muted">Version 1.2.0</div></div>
+              <div><button class="btn" onclick="showToast('Open FunFusion (demo)')">Open</button></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px;border-radius:8px;background:var(--card)">
+              <div><b>Calculator</b><div class="muted">System app</div></div>
+              <div><button class="btn" onclick="showToast('Uninstall (demo)')">Uninstall</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Default apps</h3>
+          <div class="muted">Choose default apps by file type</div>
+          <div style="margin-top:10px"><button class="btn" onclick="showToast('Choose default apps (demo)')">Choose defaults</button></div>
+        </div>
+      </div>
+
+      
+      <div id="page-accounts" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Accounts</h2>
+        <p class="muted">Your info, sign-in options, family & other users</p>
+
+        <div class="section" style="display:flex;gap:18px;align-items:center">
+          <div style="width:110px;height:110px;border-radius:999px;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:40px">👤</div>
+          <div>
+            <div style="font-weight:700;font-size:18px">ACER</div>
+            <div class="muted">leminhrangtho3@gmail.com • Administrator</div>
+            <div style="margin-top:8px"><a class="link" onclick="showToast('Manage Microsoft account (demo)')">Manage my Microsoft account</a></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Create your picture</h3>
+          <div style="display:flex;gap:12px">
+            <button class="btn" onclick="showToast('Open camera (demo)')">📷 Camera</button>
+            <button class="btn" onclick="showToast('Browse for picture (demo)')">🗂 Browse</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Sign-in options</h3>
+          <div class="row">
+            <div style="flex:1"><b>Windows Hello Face</b><div class="muted">Use your face to sign in</div></div>
+            <div><button class="btn" onclick="showToast('Setup face (demo)')">Set up</button></div>
+          </div>
+          <div class="row">
+            <div style="flex:1"><b>PIN (Windows Hello)</b><div class="muted">Use a PIN to sign in</div></div>
+            <div><button class="btn" onclick="showToast('Set up PIN (demo)')">Set up</button></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Family & other users</h3>
+          <div class="muted">Manage family members and other accounts</div>
+          <div style="margin-top:10px"><button class="btn" onclick="showToast('Add user (demo)')">Add someone</button></div>
+        </div>
+      </div>
+
+      
+      <div id="page-time" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Time & Language</h2>
+        <p class="muted">Region, date, language, speech</p>
+
+        <div class="section">
+          <h3>Date & time</h3>
+          <div class="row">
+            <div style="flex:1">
+              <label class="label">Set time automatically</label><br>
+              <label><input type="checkbox" id="autoTime" checked> On</label>
+            </div>
+            <div style="width:220px">
+              <label class="label">Time zone</label><br>
+              <select style="padding:8px;border-radius:8px;width:100%;margin-top:6px"><option>(UTC+07:00) Bangkok, Hanoi</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Language</h3>
+          <div class="muted">Windows display language</div>
+          <div style="margin-top:10px"><select style="padding:8px;border-radius:8px;width:220px"><option>Tiếng Việt</option><option>English (United States)</option></select></div>
+        </div>
+      </div>
+
+      <div id="page-gaming" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Gaming</h2>
+        <p class="muted">Game Bar, captures, Game Mode</p>
+
+        <div class="section">
+          <h3>Game Mode</h3>
+          <div class="row"><div class="label">Enable Game Mode</div><label class="switch" id="gm"><input type="checkbox"><span class="knob"></span></label></div>
+          <div class="muted">When Game Mode is on, Windows optimizes your PC for playing games.</div>
+        </div>
+
+        <div class="section">
+          <h3>Captures</h3>
+          <div class="muted">Record game clips, screenshots, and broadcast using Game Bar</div>
+          <div style="margin-top:8px"><button class="btn" onclick="showToast('Open Game Bar (demo)')">Open Game Bar</button></div>
+        </div>
+      </div>
+
+      <div id="page-search" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Search</h2>
+        <p class="muted">Find my files, permissions</p>
+
+        <div class="section">
+          <h3>Find my files</h3>
+          <div class="muted">Improve search experience</div>
+          <div style="margin-top:10px">
+            <label><input type="radio" name="searchType" checked> Classic</label>
+            <label style="margin-left:12px;"><input type="radio" name="searchType"> Enhanced</label>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Permissions & History</h3>
+          <div class="muted">Clear search history from this device</div>
+          <div style="margin-top:10px"><button class="btn" onclick="showToast('Cleared search history (demo)')">Clear history</button></div>
+        </div>
+      </div>
+
+      <div id="page-privacy" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Privacy</h2>
+        <p class="muted">Location, camera, microphone</p>
+
+        <div class="section">
+          <h3>App permissions</h3>
+          <div class="row"><div style="flex:1"><b>Camera</b><div class="muted">Allow apps to access your camera</div></div><div><label class="switch"><input type="checkbox" checked><span class="knob"></span></label></div></div>
+          <div class="row"><div style="flex:1"><b>Microphone</b><div class="muted">Allow apps to access your microphone</div></div><div><label class="switch"><input type="checkbox"><span class="knob"></span></label></div></div>
+        </div>
+
+        <div class="section">
+          <h3>Diagnostic data</h3>
+          <div class="muted">Send diagnostic data to Microsoft</div>
+          <div style="margin-top:10px"><label><input type="radio" name="diag" checked> Required</label> <label style="margin-left:12px;"><input type="radio" name="diag"> Optional</label></div>
+        </div>
+      </div>
+
+      <div id="page-update" class="subpage">
+        <div class="back" onclick="goHome()">← Home</div>
+        <h2>Update & Security</h2>
+        <p class="muted">Windows Update, recovery, backup</p>
+
+        <div class="section">
+          <h3>Windows Update</h3>
+          <div class="muted">Last checked: <span id="lastChecked">Never</span></div>
+          <div style="margin-top:10px"><button class="btn" onclick="checkUpdates()">Check for updates</button></div>
+          <div id="updateResult" style="margin-top:12px" class="muted"></div>
+        </div>
+
+        <div class="section">
+          <h3>Recovery</h3>
+          <div class="muted">Reset this PC — reinstall Windows</div>
+          <div style="margin-top:8px"><button class="btn" onclick="showToast('Open recovery options (demo)')">Open recovery options</button></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="help">
+      <div style="font-weight:700;margin-bottom:12px">Help from the web</div>
+      <div class="small-list">
+        <a onclick="showToast('Open: Switching from local to Microsoft account')">Switching from local to Microsoft account</a>
+        <a onclick="showToast('Open: Changing your user account picture')">Changing your user account picture easily</a>
+        <a onclick="showToast('Open: Checking if you have admin privileges')">Checking if you have admin privileges</a>
+        <a onclick="showToast('Open: Logging in to your Microsoft account')">Logging in to your Microsoft account</a>
+      </div>
+
+      <div style="margin-top:18px">
+        <div style="font-weight:700;margin-bottom:8px">Get help</div>
+        <div><a class="link" onclick="showToast('Get help (demo)')">Get help</a></div>
+        <div style="margin-top:6px"><a class="link" onclick="showToast('Give feedback (demo)')">Give feedback</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar" id="statusbar">Ready • <span id="statusText" class="muted">No pending actions</span></div>
+</div>
+
+<script>
+const sidebarItems = document.querySelectorAll('.sidebar-item');
+const tiles = document.querySelectorAll('.tile');
+const pages = document.querySelectorAll('.subpage');
+const contentArea = document.getElementById('contentArea');
+
+function showPage(name){
+  document.getElementById('page-home').style.display = 'none';
+  pages.forEach(p=>p.style.display = 'none');
+  
+  const el = document.getElementById('page-' + name);
+  if(el){ el.style.display = 'block'; }
+  sidebarItems.forEach(s=>s.classList.remove('active'));
+  const active = document.querySelector('.sidebar-item[data-page="'+name+'"]');
+  if(active) active.classList.add('active');
+  updateStatus('Opened '+name);
+}
+function goHome(){
+  pages.forEach(p=>p.style.display = 'none');
+  document.getElementById('page-home').style.display = 'block';
+  sidebarItems.forEach(s=>s.classList.remove('active'));
+  document.querySelector('.sidebar-item[data-page="home"]').classList.add('active');
+  updateStatus('Home');
+}
+tiles.forEach(t=>t.addEventListener('click', ()=>showPage(t.dataset.page)));
+sidebarItems.forEach(s=>s.addEventListener('click', ()=>{ const p=s.dataset.page; if(p==='home') goHome(); else showPage(p); }));
+
+
+const themeToggle = document.getElementById('themeToggle');
+function applyTheme(t){
+  if(t==='dark'){ document.documentElement.classList.add('dark'); themeToggle.textContent='Light'; }
+  else { document.documentElement.classList.remove('dark'); themeToggle.textContent='Dark'; }
+  localStorage.setItem('settings-theme', t);
+}
+themeToggle.addEventListener('click', ()=>{ const cur = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; applyTheme(cur==='dark'?'light':'dark') });
+applyTheme(localStorage.getItem('settings-theme') || 'light');
+
+function showToast(msg){
+  const s = document.getElementById('statusText');
+  s.textContent = msg;
+  setTimeout(()=>{ if(s.textContent===msg) s.textContent='No pending actions'; }, 3500);
+}
+
+function toggleNight(){
+  const el = document.getElementById('nightLightState');
+  el.textContent = el.textContent==='Off' ? 'On (until 9:00 PM)' : 'Off';
+  showToast('Toggled Night Light (demo)');
+}
+
+function checkUpdates(){
+  document.getElementById('updateResult').textContent = 'Checking for updates...';
+  showToast('Checking for updates...');
+  setTimeout(()=>{
+    document.getElementById('updateResult').textContent = 'Your device is up to date.';
+    document.getElementById('lastChecked').textContent = new Date().toLocaleString();
+    showToast('Device is up to date');
+  }, 1600);
+}
+
+document.getElementById('brightness').addEventListener('input', e=>{ localStorage.setItem('brightness', e.target.value); updateStatus('Brightness: '+e.target.value); });
+document.getElementById('volume').addEventListener('input', e=>{ localStorage.setItem('volume', e.target.value); updateStatus('Volume: '+e.target.value); });
+document.getElementById('notiAllow').addEventListener('change', e=>{ localStorage.setItem('noti', e.target.checked); updateStatus('Notifications: '+(e.target.checked?'On':'Off')); });
+
+const batterySwitch = document.getElementById('batterySwitch');
+batterySwitch.addEventListener('click', ()=>{ batterySwitch.classList.toggle('on'); const on = batterySwitch.classList.contains('on'); showToast('Battery saver: '+(on?'On':'Off')); });
+
+const airplane = document.getElementById('airplane');
+airplane.addEventListener('click', ()=>{ airplane.classList.toggle('on'); showToast('Airplane mode: '+(airplane.classList.contains('on')?'On':'Off')); });
+
+const gm = document.getElementById('gm');
+gm.addEventListener('click', ()=>{ gm.classList.toggle('on'); showToast('Game Mode: '+(gm.classList.contains('on')?'On':'Off')); });
+
+window.addEventListener('load', ()=>{
+  const b = localStorage.getItem('brightness'); if(b) document.getElementById('brightness').value=b;
+  const v = localStorage.getItem('volume'); if(v) document.getElementById('volume').value=v;
+  const n = localStorage.getItem('noti'); if(n!=='null' && n!==null) document.getElementById('notiAllow').checked = (n==='true');
+});
+
+function updateStatus(txt){
+  document.getElementById('statusText').textContent = txt;
+}
+
+document.getElementById('searchBox').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase().trim();
+  document.querySelectorAll('.tile').forEach(tile=>{
+    const t = tile.querySelector('.tile-title').textContent.toLowerCase();
+    tile.style.display = t.includes(q) ? '' : 'none';
+  });
+  if(q==='') document.querySelectorAll('.tile').forEach(t=>t.style.display='');
+});
+
+</script>
+</body>
+</html>

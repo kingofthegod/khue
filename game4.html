@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Memory Game — VIP PRO (Full Achievements)</title>
+<style>
+/* -------- THEME VARIABLES -------- */
+:root{
+  --bg:#fbfbfd; --text:#07101a; --card:#f3f4f6; --tile-back:#2b2f33;
+  --accent:#ffd54a; --good:#52ff95; --bad:#ff7b7b; --shadow:0 12px 36px rgba(2,6,23,0.08);
+}
+body.dark{
+  --bg:#0d1117; --text:#e6eef8; --card:#161b22; --tile-back:#1f2428;
+  --accent:#ffb300; --good:#2bd47b; --bad:#ff6b6b; --shadow:0 14px 40px rgba(0,0,0,0.6);
+}
+/* -------- BASE -------- */
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial;-webkit-font-smoothing:antialiased}
+h1{margin:0;font-size:20px}
+.header{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mode-btn,.grid-btn,.small-btn{background:var(--card); color:var(--text); border:0;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700; box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,background .12s}
+.mode-btn:hover,.grid-btn:hover,.small-btn:hover{transform:translateY(-3px)}
+.mode-btn.active,.grid-btn.active{background:var(--accent); color:#000; transform:scale(1.06); box-shadow:0 18px 50px rgba(0,0,0,0.14)}
+#info{margin-top:10px;font-size:14px}
+/* board container */
+#boardWrap{margin-top:16px; display:flex;flex-direction:column;align-items:center;gap:12px}
+#gameBoard{display:grid; gap:12px; justify-content:center; align-content:start}
+/* card visuals */
+.card{width:92px;height:92px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:40px; user-select:none; cursor:pointer;background:var(--tile-back); color:transparent; transition:transform .18s,box-shadow .18s,background .18s,color .18s; box-shadow:var(--shadow); border:2px solid rgba(255,255,255,0.02)}
+.card:focus{outline:3px solid rgba(255,213,74,0.15); outline-offset:4px}
+.card.flipped{background:var(--accent); color:#000; transform:translateY(-8px) scale(1.04); box-shadow:0 26px 60px rgba(0,0,0,0.15)}
+.card.matched{background:var(--good); color:#000; transform:translateY(-6px) scale(1.03); pointer-events:none}
+.card.wrong{background:var(--bad); color:#fff; transform:translateY(-2px) scale(1.02)}
+/* overlay / popup */
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.44);z-index:80}
+.popup{background:var(--card); padding:18px 22px; border-radius:12px; box-shadow:var(--shadow); text-align:center}
+/* achievement toast */
+#achToast{position:fixed;right:18px;bottom:18px;padding:12px 14px;background:var(--accent);color:#000;border-radius:10px;font-weight:800;display:none;z-index:90;box-shadow:var(--shadow)}
+/* achievements modal */
+#achModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.44);z-index:90}
+.achBox{background:var(--card);padding:16px;border-radius:12px;width:360px;box-shadow:var(--shadow);color:var(--text)}
+.achItem{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:6px; border:1px dashed rgba(0,0,0,0.04)}
+/* leaderboard modal */
+#leaderModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.44);z-index:90}
+.leaderBox{background:var(--card);padding:16px;border-radius:12px;width:400px;box-shadow:var(--shadow);color:var(--text)}
+/* settings modal */
+#settingsModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.44);z-index:90}
+.settingsBox{background:var(--card);padding:16px;border-radius:12px;width:320px;box-shadow:var(--shadow);text-align:center;color:var(--text)}
+/* confetti */
+.confetti{position:fixed;width:8px;height:8px;border-radius:2px;z-index:200;pointer-events:none;animation:fall 1000ms linear forwards}
+@keyframes fall{to{transform:translateY(700px) rotate(720deg);opacity:0}}
+/* responsive */
+@media(max-width:820px){ .card{width:74px;height:74px;font-size:32px} .achBox,.leaderBox,.settingsBox{width:92%} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Memory Game — VIP PRO (Full Achievements)</h1>
+  <div class="controls" style="margin-left:12px">
+    <div>Mode:</div>
+    <button class="mode-btn" data-mode="normal" onclick="setMode('normal')">Normal</button>
+    <button class="mode-btn" data-mode="hard" onclick="setMode('hard')">Hard</button>
+    <button class="mode-btn" data-mode="hardcore" onclick="setMode('hardcore')">Hardcore</button>
+    <button class="mode-btn" data-mode="pro" onclick="setMode('pro')">Pro</button>
+
+    <div style="width:12px"></div>
+    <div>Grid:</div>
+    <button class="grid-btn" data-grid="4" onclick="setGrid(4)">4×4</button>
+    <button class="grid-btn" data-grid="6" onclick="setGrid(6)">6×6</button>
+    <button class="grid-btn" data-grid="8" onclick="setGrid(8)">8×8</button>
+    <button class="grid-btn" data-grid="10" onclick="setGrid(10)">10×10</button>
+
+    <div style="width:12px"></div>
+
+    <button class="small-btn" onclick="openSettings()">⚙</button>
+    <button class="small-btn" onclick="openAchievements()">🏅 Achievements</button>
+    <button class="small-btn" onclick="openLeaderboard()">🏆 Leaderboard</button>
+  </div>
+</div>
+
+<div id="info">Score: 0 | Time: 0s | Combo: 0</div>
+
+<div id="boardWrap">
+  <div id="gameBoard" role="grid" aria-live="polite"></div>
+</div>
+
+<div id="overlayWin" class="overlay"><div class="popup"><h2 id="overlayText">...</h2><div style="margin-top:12px"><button class="small-btn" onclick="restart()">Chơi lại</button></div></div></div>
+<div id="achToast"></div>
+
+<div id="achModal"><div class="achBox">
+  <h3>Achievements</h3>
+  <div id="achList" style="max-height:360px; overflow:auto; margin-top:8px"></div>
+  <div style="text-align:right;margin-top:10px">
+    <button class="small-btn" onclick="resetAchievements()">Reset</button>
+    <button class="small-btn" onclick="closeAchievements()">Close</button>
+  </div>
+</div></div>
+
+<div id="leaderModal"><div class="leaderBox">
+  <h3>Leaderboard</h3>
+  <div id="leaderList" style="max-height:300px; overflow:auto; margin-top:8px"></div>
+  <div style="text-align:right;margin-top:10px">
+    <button class="small-btn" onclick="clearLeaderboard()">Clear</button>
+    <button class="small-btn" onclick="closeLeaderboard()">Close</button>
+  </div>
+</div></div>
+
+<div id="settingsModal"><div class="settingsBox">
+  <h3>Settings</h3>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+    <button class="small-btn" onclick="toggleTheme()">🌗 Toggle Dark/Light</button>
+  </div>
+  <div style="margin-top:10px">
+    <label><input id="revealCheckbox" type="checkbox" checked /> Initial reveal 5s</label>
+  </div>
+  <div style="margin-top:12px">
+    <button class="small-btn" onclick="closeSettings()">Close</button>
+  </div>
+</div></div>
+
+<script>
+// chế độ chơi====
+let mode='normal', gridSize=4;
+let board=[], flippedEls=[], matchedCount=0, score=0, combo=0, timeLeft=0, timerId=null;
+let revealOnStart=true, firstHardcoreRound=true, hardcoreProActive=false, proMultiplier=1;
+const LEADER_KEY='mg_leader_v2', ACH_KEY='mg_ach_v2';
+const ICON_POOL = (()=>{const pool=[]; const ranges=[[0x1F300,0x1F3FF],[0x1F400,0x1F6FF],[0x1F900,0x1F9FF]];for(const [s,e] of ranges){for(let cp=s;cp<=e;cp++){try{pool.push(String.fromCodePoint(cp))}catch(e){}if(pool.length>1000) break}if(pool.length>1000) break} return Array.from(new Set(pool)).filter(Boolean);})();
+const ACHIEVEMENTS=[{id:'a01',title:'Warm-up Rookie',desc:'Hoàn thành 4×4 (any mode)',icon:'🏁'},{id:'a02',title:'Sharp Eye',desc:'Match 3 cặp liên tiếp',icon:'👀'},{id:'a03',title:'Combo Master',desc:'Match 5 cặp liên tiếp',icon:'⚡'},{id:'a04',title:'Ultra Combo',desc:'Match 10 cặp liên tiếp',icon:'🔥'},{id:'a05',title:'Speedrunner A',desc:'Hoàn thành bất kỳ grid < 45s',icon:'⏱️'},{id:'a06',title:'Speedrunner B',desc:'Hoàn thành bất kỳ grid < 30s',icon:'🚀'},{id:'a07',title:'Perfect Run',desc:'Hoàn thành 1 ván không sai',icon:'💯'},{id:'a08',title:'Hardcore Survivor',desc:'Chiến thắng chế độ Hardcore',icon:'🛡️'},{id:'a09',title:'Pro Conqueror',desc:'Chiến thắng chế độ Pro',icon:'👑'},{id:'a10',title:'Collector 4x',desc:'Hoàn thành 4×4 4 lần',icon:'📦'},{id:'a11',title:'Collector 10x',desc:'Hoàn thành 10×10',icon:'🏗️'},{id:'a12',title:'No Mistake Hardcore',desc:'Hardcore clear mà không sai (hiếm)',icon:'🧊'},{id:'a13',title:'Hardcore Pro',desc:'Hoàn thành Hardcore Pro extended (extra 10 pairs)',icon:'💥'},{id:'a14',title:'Marathon',desc:'Hoàn thành 3 grid trong 1 session',icon:'🏃‍♂️'},{id:'a15',title:'Legend',desc:'Chinh phục 10 trận, tổng score > 1000',icon:'🌟'}];
+let achState=(function(){try{return JSON.parse(localStorage.getItem(ACH_KEY)||'{}')}catch(e){return{}}})();
+
+// random icon 
+function unlockAchievement(id){if(achState[id]) return; achState[id]={unlocked:true,at:new Date().toISOString()}; localStorage.setItem(ACH_KEY,JSON.stringify(achState)); showAchToast(id); renderAchievementsList();}
+// mở ACHIEVEMENTS, hiển thị , cập nhật ui
+function showAchToast(id){const ach=ACHIEVEMENTS.find(a=>a.id===id);if(!ach) return; const el=document.getElementById('achToast'); el.textContent=`${ach.icon} ${ach.title} — ${ach.desc}`; el.style.display='block'; el.style.opacity='1'; setTimeout(()=>{el.style.opacity='0'; setTimeout(()=>el.style.display='none',300);},2500);}
+function resetAchievements(){if(confirm('Reset tất cả achievements?')){achState={}; localStorage.removeItem(ACH_KEY); renderAchievementsList(); alert('Achievements cleared.');}}
+function getLeaderboard(){try{return JSON.parse(localStorage.getItem(LEADER_KEY)||'[]')}catch(e){return[]}}
+function addLeaderboardEntry(entry){const list=getLeaderboard(); list.push(entry); list.sort((a,b)=> b.score-a.score||a.timeTaken-b.timeTaken); localStorage.setItem(LEADER_KEY,JSON.stringify(list.slice(0,200)));}
+
+// ---------- UI ----------
+function highlightButtons(){document.querySelectorAll('[data-mode]').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode===mode)); document.querySelectorAll('[data-grid]').forEach(btn=>btn.classList.toggle('active',Number(btn.dataset.grid)===gridSize)); updateInfo();}
+function updateInfo(){document.getElementById('info').textContent=`Score: ${score} | Time: ${timeLeft}s | Combo: ${combo}`;}
+function spawnConfetti(amount=14){for(let i=0;i<amount;i++){const el=document.createElement('div'); el.className='confetti'; el.style.left=(Math.random()*window.innerWidth)+'px'; el.style.background=`hsl(${Math.random()*360} 90% 60%)`; el.style.top='-10px'; el.style.width=(6+Math.random()*8)+'px'; el.style.height=el.style.width; document.body.appendChild(el); setTimeout(()=>el.remove(),1100);}}
+
+// hiển thị toàn bộ bàn cờ trong 5 giây , lật xuống
+function shuffle(arr){return arr.slice().sort(()=>Math.random()-0.5);}
+function buildBoard(pairCount){const pool=shuffle(ICON_POOL); const picked=pool.slice(0,pairCount); board=shuffle([...picked,...picked]);}
+function renderBoard(reveal=false){const boardEl=document.getElementById('gameBoard'); boardEl.innerHTML=''; const colSize=gridSize<=6?'92px':'72px'; boardEl.style.gridTemplateColumns=`repeat(${gridSize}, ${colSize})`; board.forEach((icon,idx)=>{const d=document.createElement('div'); d.className='card'; d.tabIndex=0; d.dataset.index=idx; if(reveal){d.classList.add('flipped'); d.textContent=icon;} d.addEventListener('click',()=>onCardClick(d)); d.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')onCardClick(d);}); boardEl.appendChild(d);});}
+function hideAllCardsQuick(){document.querySelectorAll('#gameBoard .card').forEach(c=>{c.classList.remove('flipped','wrong','matched'); c.textContent='';});}
+
+// tùy chế độ
+function getTimeLimit(){const normal={4:60,6:90,8:240,10:300}; const hard={4:45,6:60,8:255,10:270}; const hardcore={4:30,6:45,8:180,10:240}; if(mode==='normal') return normal[gridSize]; if(mode==='hard') return hard[gridSize]; if(mode==='hardcore') return hardcore[gridSize]; if(mode==='pro') return Math.floor(normal[gridSize]*0.8); return 60;}
+function startTimer(){clearInterval(timerId); timerId=setInterval(()=>{timeLeft=Math.max(0,timeLeft-1); updateInfo(); if(timeLeft<=0){clearInterval(timerId); endRound(false);}},1000);}
+
+//  achivement kiểm tra điều kiện combo, thời gian, chế độ để unlock.
+function initGame(){clearInterval(timerId); score=0; combo=0; matchedCount=0; flippedEls=[]; hardcoreProActive=false; proMultiplier=1; revealOnStart=document.getElementById('revealCheckbox') ? document.getElementById('revealCheckbox').checked : true; if(mode==='hardcore'){revealOnStart=firstHardcoreRound;} const pairCount=(gridSize*gridSize)/2; buildBoard(pairCount); renderBoard(revealOnStart); initialTime=getTimeLimit(); timeLeft=initialTime; updateInfo(); highlightButtons(); if(revealOnStart){setTimeout(()=>{hideAllCardsQuick(); startTimer(); firstHardcoreRound=false;},5000);}else{hideAllCardsQuick(); startTimer();}}
+function onCardClick(cardEl){if(cardEl.classList.contains('flipped')||cardEl.classList.contains('matched')||flippedEls.length>=2) return; const idx=Number(cardEl.dataset.index); revealCard(cardEl,board[idx]); flippedEls.push(cardEl); if(flippedEls.length===2) checkMatch();}
+function revealCard(el,icon){el.classList.add('flipped'); el.textContent=icon;}
+function checkMatch(){const [a,b]=flippedEls; const idxA=a.dataset.index, idxB=b.dataset.index; if(board[idxA]===board[idxB]){a.classList.add('matched'); b.classList.add('matched'); matchedCount++; combo++; spawnConfetti(); score+=1*proMultiplier; timeLeft+=5; checkAchievements(); flippedEls=[]; if(matchedCount===board.length/2){endRound(true);}}else{combo=0; score=Math.max(0,score-1); timeLeft=Math.max(0,timeLeft-3); a.classList.add('wrong'); b.classList.add('wrong'); if(mode==='hardcore'){setTimeout(()=>{initGame();},240); return;} setTimeout(()=>{a.classList.remove('flipped','wrong'); a.textContent=''; b.classList.remove('flipped','wrong'); b.textContent=''; flippedEls=[];},400);}}
+function checkAchievements(){if(gridSize===4) unlockAchievement('a01'); if(combo>=3) unlockAchievement('a02'); if(combo>=5) unlockAchievement('a03'); if(combo>=10) unlockAchievement('a04'); if(timeLeft>0 && timeLeft<45) unlockAchievement('a05'); if(timeLeft>0 && timeLeft<30) unlockAchievement('a06'); if(combo===board.length/2) unlockAchievement('a07'); if(mode==='hardcore' && matchedCount===board.length/2) unlockAchievement('a08'); if(mode==='pro' && matchedCount===board.length/2) unlockAchievement('a09');}
+function endRound(won){clearInterval(timerId); document.getElementById('overlayWin').style.display='flex'; document.getElementById('overlayText').textContent=won?'🎉 Bạn thắng!':'💀 Bạn thua!'; if(won){const entry={mode,grid:gridSize,score,timeTaken:getTimeLimit()-timeLeft}; addLeaderboardEntry(entry); if(mode==='pro' && timeLeft<30){proMultiplier=10; hardcoreProActive=true; initGame();}}}
+
+// hiệu ứng khi lật , highlight, score , combo
+function openAchievements(){renderAchievementsList(); document.getElementById('achModal').style.display='flex';}
+function closeAchievements(){document.getElementById('achModal').style.display='none';}
+function renderAchievementsList(){const listEl=document.getElementById('achList'); listEl.innerHTML=''; ACHIEVEMENTS.forEach(a=>{const unlocked=achState[a.id]&&achState[a.id].unlocked; const el=document.createElement('div'); el.className='achItem'; el.style.opacity=unlocked?'1':'0.4'; el.textContent=`${a.icon} ${a.title}: ${a.desc}`; listEl.appendChild(el);});}
+function openLeaderboard(){renderLeaderboard(); document.getElementById('leaderModal').style.display='flex';}
+function closeLeaderboard(){document.getElementById('leaderModal').style.display='none';}
+function renderLeaderboard(){const listEl=document.getElementById('leaderList'); const list=getLeaderboard(); listEl.innerHTML=''; list.forEach((e,i)=>{const el=document.createElement('div'); el.textContent=`#${i+1} [${e.mode} ${e.grid}×${e.grid}] Score:${e.score} Time:${e.timeTaken}s`; listEl.appendChild(el);});}
+function clearLeaderboard(){if(confirm('Clear leaderboard?')){localStorage.removeItem(LEADER_KEY); renderLeaderboard();}}
+function openSettings(){document.getElementById('settingsModal').style.display='flex';}
+function closeSettings(){document.getElementById('settingsModal').style.display='none';}
+function toggleTheme(){document.body.classList.toggle('dark');}
+
+// ---------- MODE & GRID ----------
+function setMode(m){mode=m; highlightButtons(); initGame();}
+function setGrid(g){gridSize=g; highlightButtons(); initGame();}
+function restart(){document.getElementById('overlayWin').style.display='none'; initGame();}
+
+// ---------- INIT ----------
+initGame();
+</script>
+</body>
+</html>

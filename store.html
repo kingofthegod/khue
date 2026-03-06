@@ -1,0 +1,354 @@
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Store Clone</title>
+<link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"Segoe UI",sans-serif;background:#f3f3f3;color:#111;transition:0.3s;}
+.dark{background:#111;color:#eee;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;}
+#toggleTheme:hover{transform:scale(1.1);transition:0.2s;}
+
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;background:#0078d4;color:#fff;position:sticky;top:0;z-index:10;transition:0.3s;
+}
+header .logo{font-weight:700;font-size:1.2em;}
+header input[type="search"]{padding:5px 10px;border-radius:5px;border:none;width:300px;outline:none;}
+.account{position:relative;cursor:pointer;}
+.account-popup{
+  position:absolute;top:40px;right:0;background:#fff;color:#111;padding:10px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:none;min-width:200px;z-index:10;transition:0.3s;
+}
+.account:hover .account-popup{display:block;}
+
+.sidebar{position:fixed;top:60px;left:0;width:60px;background:#fff;height:100%;padding-top:10px;transition:0.3s;box-shadow:2px 0 6px rgba(0,0,0,0.1);}
+.sidebar.dark{background:#1a1a1a;
+ color: #eee;}
+.sidebar .item{display:flex;flex-direction:column;align-items:center;padding:15px 0;color:#555;transition:0.2s;}
+.sidebar .item:hover{background:rgba(0,120,212,0.1);color: #04ecf477;}
+.sidebar .item span{font-size:0.75em;margin-top:5px;}
+body.dark .game-card {
+  background: #1a1a1a; 
+  color: #eee; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+
+body.dark .game-card .info h4 {
+  color: #0acfff; 
+}
+
+body.dark .game-card .info p {
+  color: #ccc; 
+}
+
+body.dark .game-card button.play-btn {
+  background: #0acfff; 
+  color: #111;
+  opacity: 1; 
+  transition: background 0.3s, transform 0.3s;
+}
+
+body.dark .game-card button.play-btn:hover {
+  background: #06b3e0;
+  transform: translateY(-3px);
+}
+
+
+main{margin-left:60px;padding:20px;}
+
+.carousel{position:relative;overflow:hidden;border-radius:12px;margin-bottom:20px;}
+.carousel-track{display:flex;transition:transform 0.5s ease;}
+.carousel-slide{min-width:100%;position:relative;}
+.carousel-slide img {
+  width: 100%;
+  height:400px;      
+  object-fit: cover;
+  border-radius: 12px;
+}
+.carousel-slide .title{position:absolute;bottom:60px;left:20px;color:#fff;font-size:1.5em;font-weight:600;}
+.carousel-slide button{position:absolute;bottom:10px;left:20px;padding:8px 15px;border:none;border-radius:5px;background:#0078d4;color:#fff;font-weight:600;}
+.arrow{
+  position:absolute;top:50%;
+  transform:translateY(-50%);
+  background:rgba(0,0,0,0.5);
+  color:#fff;
+  border:none;
+  padding:10px;
+  font-size:1.2em;
+  border-radius:50%;
+  cursor:pointer;
+  z-index:10;
+}
+.arrow.left{left:10px;}
+.arrow.right{right:10px;}
+.arrow:hover{background:#0078d4;}
+
+.trending{
+  display:flex;flex-wrap:wrap;gap:20px;
+}
+.game-card{
+  position:relative;width:calc(25% - 20px);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);transition:transform 0.3s, box-shadow 0.3s;
+}
+.game-card:hover{transform:translateY(-5px);box-shadow:0 8px 20px rgba(0,0,0,0.2);}
+.game-card img {
+  width: 100%;
+  height: 250px;      
+  object-fit: flex;  
+  border-radius: 12px 12px 0 0;
+}
+.game-card .info{padding:10px;}
+.game-card .info h4{font-size:1em;margin-bottom:5px;}
+.game-card .info p{font-size:0.8em;color:#666;}
+.game-card button{
+  position:absolute;bottom:10px;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  padding:5px 10px;border:none;background:#0078d4;color:#fff;border-radius:5px;opacity:0;transition:opacity 0.3s, transform 0.3s;
+}
+.game-card:hover button{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(max-width:1024px){ .game-card{width:calc(33.33% - 20px);} }
+@media(max-width:768px){ .game-card{width:calc(50% - 20px);} }
+@media(max-width:480px){ .game-card{width:100%;} }
+
+
+.settings-panel{
+  position:fixed;top:60px;right:-270px;background:#fff;padding:20px;width:250px;box-shadow:-2px 0 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:10px;border-radius:0 0 0 12px;transition:0.3s;
+}
+.settings-panel.dark{background:#222;color:#eee;}
+.settings-panel.show{right:0;}
+.settings-panel label{display:flex;justify-content:space-between;align-items:center;font-weight:600;}
+.settings-panel input[type="checkbox"]{width:20px;height:20px;}
+.account {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 8px;
+}
+
+.userIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+#accountName {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.accountPopup {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    width: 180px;
+    background: #1c1c1c;
+    border: 1px solid #333;
+    padding: 12px;
+    border-radius: 10px;
+    display: none;
+}
+
+.accountPopup p {
+    margin: 4px 0;
+    opacity: 0.85;
+}
+
+#logoutBtn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 0;
+    background: #ff3b3b;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Microsoft Store</div>
+  <input type="search" id="search" placeholder="Search apps, games, and more">
+  <div style="display:flex;align-items:center;gap:15px;">
+    <button id="toggleTheme" style="background:none;border:none;color:#fff;font-size:1.2em;cursor:pointer;"></button>
+     
+   <div class="account" id="accountBtn">
+    <img src="data:image/png;base64,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" class="userIcon" />
+    <span id="accountName"></span>
+
+    <div class="accountPopup" id="accountPopup">
+        <p id="popupUser"></p>
+        <p id="popupEmail"></p>
+        <button id="logoutBtn">Logout</button>
+    </div>
+</div>>
+  </div>
+</header>
+
+<div class="sidebar" id="sidebar">
+  <div class="item">🏠<span>Home</span></div>
+  <div class="item">🎮<span>Gaming</span></div>
+
+</div>
+
+
+
+
+
+<main>
+  <div class="carousel" id="carousel">
+    <div class="carousel-track" id="carouselTrack">
+      <div class="carousel-slide">
+        <img src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3253300/header.jpg?t=1732659042">
+        <div class="title">Hangman</div>
+        <button onclick="window.open('game2.html')">Play now</button>
+      </div>
+      <div class="carousel-slide">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRKjsqtixqHY0zuR0LKfbSJpM9cValfuaMEzw&s">
+        <div class="title">Chess</div>
+        <button onclick="window.open('game6.html')">Play now</button>
+      </div>
+      <div class="carousel-slide">
+        <img src="https://incrementaldb.b-cdn.net/img/901923Screenshot%202024-08-26%20at%2018.29.58.png">
+        <div class="title">Planet Clicker</div>
+        <button onclick="window.open('game1.html')">Play now</button>
+      </div>
+    </div>
+    <button class="arrow left" onclick="prevSlide()">◀</button>
+    <button class="arrow right" onclick="nextSlide()">▶</button>
+  </div>
+
+  <h3>Trending Games</h3>
+  <div class="trending" id="trendingGames">
+    <div class="game-card">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHuwvgKlMbKhwNA1BP1DjM075FZ6fEvzHWZA&s">
+      <div class="info"><h4>Planet Clicker</h4><p>Free</p></div>
+      <button onclick="window.open('game1.html')">Play Now</button>
+    </div>
+    <div class="game-card">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROTU6ZoED8p7aRzLIB1yyFg_fSu8MMiE20pQ&s">
+      <div class="info"><h4>Hangman</h4><p>Free</p></div>
+      <button onclick="window.open('game2.html')">Play Now</button>
+    </div>
+    <div class="game-card">
+      <img src="https://www.kindpng.com/picc/m/441-4412722_rock-paper-scissors-lizard-spock-decal-hd-png.png">
+      <div class="info"><h4>RPSLS</h4><p>Free</p></div>
+      <button onclick="window.open('game3.html')">Play Now</button>
+    </div>
+    <div class="game-card">
+      <img src="https://cdn-icons-png.freepik.com/256/1191/1191121.png?semt=ais_white_label">
+      <div class="info"><h4>Memory Game</h4><p>Free</p></div>
+      <button onclick="window.open('game4.html')">Play Now</button>
+    </div>
+    <div class="game-card">
+      <img src="https://img.poki-cdn.com/cdn-cgi/image/q=78,scq=50,width=314,height=314,fit=cover,f=auto/15c3039fc9be0139947ffe86d2369d3b/fast-typer.png">
+      <div class="info"><h4>Fast Typer</h4><p>Free</p></div>
+      <button onclick="window.open('game5.html')">Play Now</button>
+    </div>
+    <div class="game-card">
+      <img src="data:image/png;base64,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">
+      <div class="info"><h4>Chess</h4><p>Free</p></div>
+      <button onclick="window.open('game6.html')">Play Now</button>
+    </div>
+    <div class="game-card">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcScxB9yv44BC76XV5osI42RIN4Hw1Q9TMuo2Q&s">
+      <div class="info"><h4>Pixel Art</h4><p>Free</p></div>
+      <button onclick="window.open('game7.html')">Play Now</button>
+    </div>
+  </div>
+</main>
+
+<script>
+
+let track=document.getElementById("carouselTrack");
+let slides=document.querySelectorAll(".carousel-slide");
+let index=0;
+let interval=setInterval(nextSlide,4000);
+function nextSlide(){ index=(index+1)%slides.length; track.style.transform=`translateX(-${index*100}%)`; }
+function prevSlide(){ index=(index-1+slides.length)%slides.length; track.style.transform=`translateX(-${index*100}%)`; }
+document.getElementById("carousel").addEventListener("mouseenter",()=>clearInterval(interval));
+document.getElementById("carousel").addEventListener("mouseleave",()=>interval=setInterval(nextSlide,4000));
+
+
+ const accBtn = document.getElementById("accountBtn");
+    const popup = document.getElementById("accountPopup");
+    const accountName = document.getElementById("accountName");
+
+    const popupUser = document.getElementById("popupUser");
+    const popupEmail = document.getElementById("popupEmail");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    let data = localStorage.getItem("mafaa");
+    let userData = data ? JSON.parse(data) : null;
+
+    // Nếu chưa login → click để sang login.html
+    if (!userData) {
+        accBtn.onclick = () => {
+            window.location.href = "login.html";
+        };
+    } else {
+        // Nếu đã login → hiển thị username
+        accountName.textContent = userData.username;
+
+        // Hover → mở popup
+        accBtn.onmouseenter = () => popup.style.display = "block";
+        accBtn.onmouseleave = () => popup.style.display = "none";
+
+        popupUser.textContent = "👤 " + userData.username;
+        popupEmail.textContent = "📧 " + (userData.email || "No email");
+
+        // Logout
+        logoutBtn.onclick = () => {
+            localStorage.removeItem("mafaa");
+            location.reload();
+        };
+    }
+
+
+
+userBox.onmouseenter = ()=>{ if(account) userPopup.style.display = "block"; }
+userBox.onmouseleave = ()=>{ userPopup.style.display = "none"; }
+
+
+logoutBtn.onclick = ()=>{
+  localStorage.removeItem("mafaa");
+  window.location.reload(); 
+}
+
+
+const search=document.getElementById("search");
+search.addEventListener("input",()=>{  
+  const query=search.value.toLowerCase();
+  document.querySelectorAll(".game-card").forEach(card=>{
+    const name=card.querySelector("h4").textContent.toLowerCase();
+    card.style.display=name.includes(query)?"block":"none";
+  });
+});
+
+// const themeBtn = document.getElementById("toggleTheme");
+// themeBtn.addEventListener("click",()=>{
+//   document.body.classList.toggle("dark");
+//   document.querySelector(".sidebar").classList.toggle("dark");
+//   if(document.body.classList.contains("dark")){
+//     themeBtn.textContent = "";
+//   } else {
+//     themeBtn.textContent = "";
+//   }
+// });
+
+
+const settingsBtn=document.getElementById("settingsBtn");
+const settingsPanel=document.getElementById("settingsPanel");
+settingsBtn.addEventListener("click",()=>settingsPanel.classList.toggle("show"));
+</script>
+
+</body>
+</html> 
